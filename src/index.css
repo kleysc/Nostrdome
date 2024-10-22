@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+    background-color: #0a0a0a; 
+    color: #00ff00; 
+    font-family: 'Inter', sans-serif;
+  
+  button {
+    transition: background-color 0.3s, transform 0.2s;
+  }
+  
+  button:hover {
+    background-color: #1db954; 
+    transform: scale(1.05); 
+  }
+  
+  .message {
+    background-color: #1e1e1e;
+    border-radius: 12px;
+    padding: 10px;
+    margin: 5px 0;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  }
+  
+  .message.user {
+    background-color: #007bff;
+    color: white;
+  }
+  
+  .header {
+    background: linear-gradient(90deg, rgba(0, 123, 255, 1) 0%, rgba(0, 255, 123, 1) 100%); /* Gradiente en el header */
+  }
+}

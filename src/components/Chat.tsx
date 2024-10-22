@@ -1,0 +1,176 @@
+import React, { useState, useEffect, useRef } from "react";
+import { SimplePool, Event, getEventHash, getSignature, nip04 } from "nostr-tools";
+import { relayUrls } from "../config";
+
+interface ChatProps {
+  privateKey: string;
+  publicKey: string;
+  pool: SimplePool;
+}
+
+interface Message {
+  id: string;
+  pubkey: string;
+  content: string;
+  created_at: number;
+  isPrivate: boolean;
+  recipient?: string;
+}
+
+const Chat: React.FC<ChatProps> = ({ privateKey, publicKey, pool }) => {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState("");
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const sub = pool.sub(relayUrls, [
+      {
+        kinds: [1, 4], 
+        limit: 100,
+      },
+    ]);
+
+    sub.on("event", async (event: Event) => {
+      try {
+        let messageContent = event.content;
+        let isPrivateMessage = event.kind === 4;
+
+        if (isPrivateMessage && event.tags.some((tag) => tag[0] === "p")) {
+          const recipientPubkey = event.tags.find((tag) => tag[0] === "p")?.[1];
+          if (recipientPubkey === publicKey || event.pubkey === publicKey) {
+            try {
+              messageContent = await nip04.decrypt(
+                privateKey,
+                event.pubkey,
+                event.content
+              );
+            } catch (error) {
+              console.error("Error descifrando mensaje:", error);
+              return;
+            }
+          } else {
+            return;
+          }
+        }
+
+        const newMessage: Message = {
+          id: event.id,
+          pubkey: event.pubkey,
+          content: messageContent,
+          created_at: event.created_at,
+          isPrivate: isPrivateMessage,
+          recipient: event.tags.find((tag) => tag[0] === "p")?.[1],
+        };
+
+        if (
+          !isPrivateMessage ||
+          newMessage.pubkey === publicKey ||
+          newMessage.recipient === publicKey
+        ) {
+          setMessages((prevMessages) => {
+            if (!prevMessages.find((msg) => msg.id === newMessage.id)) {
+              return [...prevMessages, newMessage];
+            }
+            return prevMessages;
+          });
+        }
+      } catch (error) {
+        console.error("Error procesando mensaje:", error);
+      }
+    });
+
+    return () => {
+      sub.unsub();
+    };
+  }, [pool, publicKey, privateKey]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const sendMessage = async () => {
+    if (!input.trim()) return;
+    try {
+      const event: Event<number> = {
+        id: '',
+        sig: '',
+        kind: 1, 
+        pubkey: publicKey,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [],
+        content: input,
+      };
+
+      if (input.startsWith("@")) {
+        const parts = input.split(" ");
+        const mentionedPubkey = parts[0].slice(1);
+
+        if (!mentionedPubkey || mentionedPubkey.length !== 64) {
+          console.error("Clave pública no válida:", mentionedPubkey);
+          return;
+        }
+
+        const messageContent = input.replace(`@${mentionedPubkey}`, "").trim();
+
+        const encryptedContent = await nip04.encrypt(
+          privateKey,
+          mentionedPubkey,
+          messageContent
+        );
+
+        event.kind = 4;
+        event.tags = [["p", mentionedPubkey]];
+        event.content = encryptedContent;
+      }
+
+      event.id = getEventHash(event);
+      event.sig = getSignature(event, privateKey);
+
+      const pubs = pool.publish(relayUrls, event);
+      await Promise.all(pubs);
+    } catch (error) {
+      console.error("Error enviando mensaje:", error);
+    }
+
+    setInput("");
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="flex-grow overflow-y-auto mb-4 space-y-2">
+        {messages.map((msg) => (
+          <div
+            key={msg.id}
+            className={`message ${msg.pubkey === publicKey ? "user" : ""} 
+                       ${msg.isPrivate ? "bg-purple-900" : ""}`}
+          >
+            <span className="font-bold">{msg.pubkey.slice(0, 8)}:</span>
+            {msg.isPrivate && (
+              <span className="ml-2 text-purple-300">[Private]</span>
+            )}
+            <span className="ml-2">{msg.content}</span>
+          </div>
+        ))}
+        <div ref={messagesEndRef} />
+      </div>
+      <div className="fixed bottom-0 left-0 right-0 bg-gray-800 p-2 flex">
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+          className="flex-grow bg-gray-700 text-green-500 p-2 rounded-l focus:outline-none"
+          placeholder="Type @pubkey for private message..."
+        />
+        <button
+          onClick={sendMessage}
+          className="bg-green-700 text-white px-4 py-2 rounded-r hover:bg-green-600"
+        >
+          Send
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default Chat;
