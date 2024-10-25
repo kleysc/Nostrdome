@@ -48,7 +48,7 @@ function App() {
   return (
     <div className="min-h-screen bg-black text-green-500 font-mono flex flex-col">
       <header className="fixed top-0 left-0 right-0 bg-green-900 p-4 z-10">
-        <h1 className="text-2xl">Nostr Chat</h1>
+        <h1 className="text-2xl">Nostrdome</h1>
         {publicKey && (
           <div className="flex justify-between items-center">
             <p className="text-sm">Public Key: {nip19.npubEncode(publicKey)}</p>
@@ -61,7 +61,7 @@ function App() {
           </div>
         )}
       </header>
-      <main className="flex-grow p-4 pt-16"> {/* Agregar padding-top para evitar que el contenido se superponga con el header */}
+      <main className="flex-grow p-4 pt-16"> 
         {privateKey && publicKey && pool ? (
           <Chat privateKey={privateKey} publicKey={publicKey} pool={pool} />
         ) : (
