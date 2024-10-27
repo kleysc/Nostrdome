@@ -22,6 +22,9 @@ body {
     padding: 10px;
     margin: 5px 0;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    max-width: 70%; 
+    position: relative;
+    word-wrap: break-word; 
   }
   
   .message.user {
@@ -30,6 +33,10 @@ body {
   }
   
   .header {
-    background: linear-gradient(90deg, rgba(0, 123, 255, 1) 0%, rgba(0, 255, 123, 1) 100%); /* Gradiente en el header */
+    background: linear-gradient(90deg, rgba(0, 123, 255, 1) 0%, rgba(0, 255, 123, 1) 100%); 
   }
+}
+
+.bg-blue-600 {
+  background-color: #1d4ed8;
 }

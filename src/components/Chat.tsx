@@ -45,7 +45,7 @@ const Chat: React.FC<ChatProps> = ({ privateKey, publicKey, pool }) => {
                 event.content
               );
             } catch (error) {
-              console.error("Error descifrando mensaje:", error);
+              console.error("Error decrypting message:", error);
               return;
             }
           } else {
@@ -75,7 +75,7 @@ const Chat: React.FC<ChatProps> = ({ privateKey, publicKey, pool }) => {
           });
         }
       } catch (error) {
-        console.error("Error procesando mensaje:", error);
+        console.error("Error processing message:", error);
       }
     });
 
@@ -106,7 +106,7 @@ const Chat: React.FC<ChatProps> = ({ privateKey, publicKey, pool }) => {
         const mentionedPubkey = parts[0].slice(1);
 
         if (!mentionedPubkey || mentionedPubkey.length !== 64) {
-          console.error("Clave pública no válida:", mentionedPubkey);
+          console.error("Invalid public key:", mentionedPubkey);
           return;
         }
 
@@ -129,7 +129,7 @@ const Chat: React.FC<ChatProps> = ({ privateKey, publicKey, pool }) => {
       const pubs = pool.publish(relayUrls, event);
       await Promise.all(pubs);
     } catch (error) {
-      console.error("Error enviando mensaje:", error);
+      console.error("Error sending message:", error);
     }
 
     setInput("");
@@ -137,12 +137,20 @@ const Chat: React.FC<ChatProps> = ({ privateKey, publicKey, pool }) => {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex-grow overflow-y-auto mb-4 space-y-2">
+      <div className="flex-grow overflow-y-auto mb-4 space-y-2 p-4">
         {messages.map((msg) => (
           <div
             key={msg.id}
-            className={`message ${msg.pubkey === publicKey ? "user" : ""} 
-                       ${msg.isPrivate ? "bg-purple-900" : ""}`}
+            className={`message ${msg.pubkey === publicKey ? "self-end text-white" : "self-start text-white"} 
+                       rounded-lg p-2 my-1 max-w-xs`}
+            style={{
+              alignSelf: msg.pubkey === publicKey ? 'flex-end' : 'flex-start',
+              borderRadius: '10px',
+              boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+              marginLeft: msg.pubkey === publicKey ? 'auto' : '0',
+              marginRight: msg.pubkey === publicKey ? '0' : 'auto',
+              backgroundColor: msg.pubkey === publicKey ? '#1d4ed8' : '#4b5563', // Azul para enviados, gris para recibidos
+            }}
           >
             <span className="font-bold">{msg.pubkey.slice(0, 8)}:</span>
             {msg.isPrivate && (
