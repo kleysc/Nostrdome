@@ -16,7 +16,12 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (inputKey) {
-      onLogin(inputKey);
+      try {
+        const decodedKey = nip19.decode(inputKey);
+        onLogin(decodedKey.data as string);
+      } catch (error) {
+        alert("Clave privada no válida. Por favor, inténtalo de nuevo.");
+      }
     } else {
       const newPrivateKey = generatePrivateKey();
       const newPublicKey = getPublicKey(newPrivateKey);
