@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { SimplePool, Event, getEventHash, getSignature, nip04 } from "nostr-tools";
 import { relayUrls } from "../config";
+import { OrderType, PriceType, OrderStatus } from '../types/mostro';
 
 interface ChatProps {
   privateKey: string;
@@ -135,6 +136,54 @@ const Chat: React.FC<ChatProps> = ({ privateKey, publicKey, pool }) => {
     setInput("");
   };
 
+  const handleCommand = async (input: string) => {
+    const [command, ...args] = input.split(' ');
+    
+    switch (command) {
+      case '/buy':
+        await createOrder(OrderType.BUY, args);
+        break;
+      case '/sell':
+        await createOrder(OrderType.SELL, args);
+        break;
+      case '/take':
+        await takeOrder(args[0]); // orderId
+        break;
+      case '/dispute':
+        await openDispute(args[0]); // orderId
+        break;
+      default:
+        await sendMessage();
+    }
+  };
+
+  const createOrder = async (type: OrderType, args: string[]) => {
+    const [amount, currency, price, paymentMethod] = args;
+    
+    const order = {
+      type,
+      amount: parseInt(amount),
+      priceType: price ? PriceType.FIXED : PriceType.MARKET,
+      price: price ? parseFloat(price) : undefined,
+      currency,
+      paymentMethod,
+      status: OrderStatus.PENDING,
+      makerPubkey: publicKey,
+      created_at: Math.floor(Date.now() / 1000)
+    };
+
+    // Publish order event
+    const event = {
+      kind: 1021, // Mostro order kind
+      created_at: Math.floor(Date.now() / 1000),
+      tags: [],
+      content: JSON.stringify(order),
+      pubkey: publicKey
+    };
+
+    // ... rest of the event publishing logic ...
+  };
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex-grow overflow-y-auto mb-4 space-y-2 p-4">
@@ -166,12 +215,12 @@ const Chat: React.FC<ChatProps> = ({ privateKey, publicKey, pool }) => {
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+          onKeyDown={(e) => e.key === "Enter" && handleCommand(input)}
           className="flex-grow bg-gray-700 text-green-500 p-2 rounded-l focus:outline-none"
           placeholder="Type @pubkey for private message..."
         />
         <button
-          onClick={sendMessage}
+          onClick={handleCommand}
           className="bg-green-700 text-white px-4 py-2 rounded-r hover:bg-green-600"
         >
           Send

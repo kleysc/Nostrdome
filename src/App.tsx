@@ -19,10 +19,24 @@ function App() {
     const newPool = new SimplePool();
     setPool(newPool);
 
+    // Configurar filtros de suscripción
+    const filters = [
+      {
+        kinds: [38383], // Por ejemplo, solo eventos de tipo 1
+        authors: [], // Filtrar por la clave pública del usuario
+      },
+      // Puedes agregar más filtros según sea necesario
+    ];
+
+    // Suscribirse a los filtros
+    if (publicKey) {
+      newPool.sub(relayUrls, filters);
+    }
+
     return () => {
       newPool.close(relayUrls);
     };
-  }, []);
+  }, [publicKey]); // Dependencia de publicKey para volver a suscribirse si cambia
 
   const handleLogin = (inputPrivateKey: string) => {
     if (inputPrivateKey) {

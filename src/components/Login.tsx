@@ -18,7 +18,11 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     if (inputKey) {
       try {
         const decodedKey = nip19.decode(inputKey);
-        onLogin(decodedKey.data as string);
+        if (decodedKey.type === 'nsec') {
+          onLogin(decodedKey.data as string);
+        } else {
+          alert("Por favor, ingresa una clave privada válida.");
+        }
       } catch (error) {
         alert("Clave privada no válida. Por favor, inténtalo de nuevo.");
       }
