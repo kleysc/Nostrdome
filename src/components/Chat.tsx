@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { SimplePool, Event, getEventHash, getSignature, nip04 } from "nostr-tools";
+import { SimplePool, Event, getEventHash, getSignature, nip04, nip19 } from "nostr-tools";
 import { relayUrls } from "../config";
 
 interface ChatProps {
@@ -19,7 +19,7 @@ interface Message {
 
 const Chat: React.FC<ChatProps> = ({ privateKey, publicKey, pool }) => {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState<string>("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -90,11 +90,12 @@ const Chat: React.FC<ChatProps> = ({ privateKey, publicKey, pool }) => {
 
   const sendMessage = async () => {
     if (!input.trim()) return;
+
     try {
       const event: Event<number> = {
         id: '',
         sig: '',
-        kind: 1, 
+        kind: 1,
         pubkey: publicKey,
         created_at: Math.floor(Date.now() / 1000),
         tags: [],
@@ -105,34 +106,36 @@ const Chat: React.FC<ChatProps> = ({ privateKey, publicKey, pool }) => {
         const parts = input.split(" ");
         const mentionedPubkey = parts[0].slice(1);
 
-        if (!mentionedPubkey || mentionedPubkey.length !== 64) {
+        let decodedPubkey;
+        try {
+          const decoded = nip19.decode(mentionedPubkey);
+          decodedPubkey = decoded.data as string;
+        } catch (error) {
+          console.error("Invalid public key format:", mentionedPubkey);
+          return;
+        }
+
+        if (!decodedPubkey || decodedPubkey.length !== 64) {
           console.error("Invalid public key:", mentionedPubkey);
           return;
         }
 
         const messageContent = input.replace(`@${mentionedPubkey}`, "").trim();
-
-        const encryptedContent = await nip04.encrypt(
-          privateKey,
-          mentionedPubkey,
-          messageContent
-        );
+        const encryptedContent = await nip04.encrypt(privateKey, decodedPubkey, messageContent);
 
         event.kind = 4;
-        event.tags = [["p", mentionedPubkey]];
+        event.tags = [["p", decodedPubkey]];
         event.content = encryptedContent;
       }
 
       event.id = getEventHash(event);
       event.sig = getSignature(event, privateKey);
 
-      const pubs = pool.publish(relayUrls, event);
-      await Promise.all(pubs);
+      await pool.publish(relayUrls, event);
+      setInput("");
     } catch (error) {
       console.error("Error sending message:", error);
     }
-
-    setInput("");
   };
 
   return (
@@ -149,7 +152,7 @@ const Chat: React.FC<ChatProps> = ({ privateKey, publicKey, pool }) => {
               boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
               marginLeft: msg.pubkey === publicKey ? 'auto' : '0',
               marginRight: msg.pubkey === publicKey ? '0' : 'auto',
-              backgroundColor: msg.pubkey === publicKey ? '#1d4ed8' : '#4b5563', // Azul para enviados, gris para recibidos
+              backgroundColor: msg.pubkey === publicKey ? '#1d4ed8' : '#4b5563',
             }}
           >
             <span className="font-bold">{msg.pubkey.slice(0, 8)}:</span>
@@ -157,6 +160,14 @@ const Chat: React.FC<ChatProps> = ({ privateKey, publicKey, pool }) => {
               <span className="ml-2 text-purple-300">[Private]</span>
             )}
             <span className="ml-2">{msg.content}</span>
+            {msg.isPrivate && msg.pubkey !== publicKey && (
+              <button
+                onClick={() => setInput(`@${nip19.npubEncode(msg.pubkey)} `)}
+                className="ml-2 text-blue-500 hover:underline"
+              >
+                Responder
+              </button>
+            )}
           </div>
         ))}
         <div ref={messagesEndRef} />
@@ -166,7 +177,7 @@ const Chat: React.FC<ChatProps> = ({ privateKey, publicKey, pool }) => {
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+          onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
           className="flex-grow bg-gray-700 text-green-500 p-2 rounded-l focus:outline-none"
           placeholder="Type @pubkey for private message..."
         />
