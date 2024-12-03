@@ -18,8 +18,8 @@ const MessageReactions: React.FC<ReactionProps> = ({ messageId, pool, publicKey,
   });
 
   useEffect(() => {
-    const sub = pool.sub([...relayUrls], [{
-      kinds: [7], // Reaction event kind
+    const sub = pool.sub(relayUrls, [{
+      kinds: [7],
       '#e': [messageId]
     }]);
 
@@ -52,17 +52,17 @@ const MessageReactions: React.FC<ReactionProps> = ({ messageId, pool, publicKey,
     event.id = getEventHash(event);
     event.sig = getSignature(event, privateKey);
 
-    await pool.publish([...relayUrls], event);
+    await pool.publish(relayUrls, event);
   };
 
   return (
-    <div className="flex gap-2 mt-1">
+    <div className="flex gap-2">
       {Object.entries(reactions).map(([emoji, users]) => (
         <button
           key={emoji}
           onClick={() => sendReaction(emoji)}
           className={`px-2 py-1 rounded text-sm ${
-            users.has(publicKey) ? 'bg-green-600' : 'bg-gray-700 hover:bg-gray-600'
+            users.has(publicKey) ? 'bg-green-600' : 'bg-gray-600 hover:bg-gray-500'
           }`}
         >
           {emoji} {users.size > 0 && users.size}

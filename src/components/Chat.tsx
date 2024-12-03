@@ -236,22 +236,16 @@ const Chat: React.FC<ChatProps> = ({ privateKey, publicKey, pool }) => {
           <div key={msg.id} 
             className={`message p-2 rounded-lg ${
               msg.pubkey === publicKey 
-                ? "self-end bg-green-700 text-white" 
-                : "self-start bg-gray-700"
+                ? "self-end bg-green-600 text-white" 
+                : "self-start bg-gray-100"
             }`}
           >
             <div className="flex items-center gap-2 mb-1">
               <span className="font-bold">{formatPubkey(msg.pubkey, true)}</span>
               {msg.isPrivate && (
-                <span className="text-purple-300 text-sm">[Private]</span>
+                <span className="text-purple-300 text-sm">[Privado]</span>
               )}
             </div>
-            {msg.replyTo && (
-              <div className="text-sm text-gray-400 border-l-2 border-gray-600 pl-2 mb-2">
-                <div>Respondiendo a {formatPubkey(msg.pubkey, true)}</div>
-                <div className="truncate">{msg.replyContent}</div>
-              </div>
-            )}
             <div className="break-words">
               {renderMessageContent(msg.content)}
             </div>
@@ -323,9 +317,9 @@ const Chat: React.FC<ChatProps> = ({ privateKey, publicKey, pool }) => {
           />
           <button 
             onClick={sendMessage} 
-            className="bg-green-700 text-white px-4 py-2 rounded-r hover:bg-green-600"
+            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-500"
           >
-            {editingMessage ? "Actualizar" : "Enviar"} {/* Cambiar el texto del botón */}
+            {editingMessage ? "Actualizar" : "Enviar"}
           </button>
         </div>
       </div>

@@ -18,8 +18,8 @@ const MessageSearch: React.FC<MessageSearchProps> = ({ onSearch }) => {
         type="text"
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
-        placeholder="Search messages..."
-        className="flex-grow bg-gray-700 text-green-500 p-2 rounded focus:outline-none"
+        placeholder="Buscar mensajes..."
+        className="flex-grow bg-gray-200 text-black p-2 rounded focus:outline-none"
       />
       <button
         type="submit"

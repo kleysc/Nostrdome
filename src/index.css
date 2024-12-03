@@ -2,41 +2,142 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-    background-color: #0a0a0a; 
-    color: #00ff00; 
-    font-family: 'Inter', sans-serif;
-  
-  button {
-    transition: background-color 0.3s, transform 0.2s;
-  }
-  
-  button:hover {
-    background-color: #1db954; 
-    transform: scale(1.05); 
-  }
-  
-  .message {
-    background-color: #1e1e1e;
-    border-radius: 12px;
-    padding: 10px;
-    margin: 5px 0;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    max-width: 70%; 
-    position: relative;
-    word-wrap: break-word; 
-  }
-  
-  .message.user {
-    background-color: #007bff;
-    color: white;
-  }
-  
-  .header {
-    background: linear-gradient(90deg, rgba(0, 123, 255, 1) 0%, rgba(0, 255, 123, 1) 100%); 
-  }
+:root {
+  --primary-color: #00875A;
+  --secondary-color: #34d399;
+  --background-color: #ffffff;
+  --text-color: #1e293b;
+  --message-bg: #f3f4f6;
+  --message-own-bg: #00875A;
+  --message-own-text: #ffffff;
 }
 
-.bg-blue-600 {
-  background-color: #1d4ed8;
+body {
+    background-color: var(--background-color);
+    color: var(--text-color);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    line-height: 1.5;
+}
+
+/* Estilos para mensajes */
+.message {
+    background-color: var(--message-bg);
+    border-radius: 16px;
+    padding: 12px 16px;
+    margin: 8px 0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    max-width: 80%;
+    transition: transform 0.2s ease;
+}
+
+.message:hover {
+    transform: translateY(-1px);
+}
+
+.message.user {
+    background-color: var(--message-own-bg);
+    color: var(--message-own-text);
+    margin-left: auto;
+    margin-right: 0;
+    border: 1px solid var(--primary-color);
+}
+
+/* Estilos para botones */
+button {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 10px 16px;
+    border-radius: 12px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    border: 2px solid transparent;
+}
+
+button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
+}
+
+button:active {
+    transform: translateY(0);
+}
+
+/* Estilos para inputs */
+input {
+    background-color: white;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 10px 16px;
+    transition: all 0.2s ease;
+    width: 100%;
+}
+
+input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    outline: none;
+}
+
+/* Estilos para el header */
+.header {
+    background-color: white;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* Estilos para reacciones */
+.reaction-button {
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 14px;
+    background-color: #f1f5f9;
+    color: var(--text-color);
+    border: 1px solid #e2e8f0;
+}
+
+.reaction-button:hover {
+    background-color: #e2e8f0;
+}
+
+.reaction-button.active {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+/* Animaciones */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.3s ease forwards;
+}
+
+/* Primero, resetear los fondos oscuros */
+.bg-gray-800,
+.bg-gray-900,
+.bg-black {
+    background-color: var(--background-color) !important;
+}
+
+/* Asegurarnos de que el texto sea legible */
+.text-gray-300,
+.text-gray-400 {
+    color: var(--text-color) !important;
+}
+
+/* Estilo para el botón "Editar" */
+button.edit {
+    background-color: #e2e8f0;
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+button.edit:hover {
+    background-color: #d1d5db;
 }

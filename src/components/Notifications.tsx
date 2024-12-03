@@ -65,8 +65,8 @@ const Notifications: React.FC<NotificationProps> = ({ onNotificationChange, publ
       onClick={requestNotificationPermission}
       className={`px-4 py-2 rounded flex items-center gap-2 ${
         permission === 'granted'
-          ? 'bg-green-600 hover:bg-green-700'
-          : 'bg-purple-600 hover:bg-purple-700'
+          ? 'bg-green-500 hover:bg-green-600'
+          : 'bg-blue-500 hover:bg-blue-600'
       } text-white`}
     >
       🔔 {permission === 'granted' ? 'Activadas' : 'Activar Notificaciones'}
