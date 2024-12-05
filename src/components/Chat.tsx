@@ -16,15 +16,15 @@ interface Message {
   created_at: number;
   isPrivate: boolean;
   recipient?: string;
-  replyTo?: string; // ID del mensaje al que se responde
-  replyContent?: string; // Contenido del mensaje al que se responde
+  replyTo?: string; 
+  replyContent?: string;
 }
 
 const Chat: React.FC<ChatProps> = ({ privateKey, publicKey, pool }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState<string>("");
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
-  const [editingMessage, setEditingMessage] = useState<Message | null>(null); // Estado para el mensaje en edición
+  const [editingMessage, setEditingMessage] = useState<Message | null>(null); 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

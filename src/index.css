@@ -42,7 +42,6 @@ body {
     border: 1px solid var(--primary-color);
 }
 
-/* Estilos para botones */
 button {
     background-color: var(--primary-color);
     color: white;
@@ -62,7 +61,6 @@ button:active {
     transform: translateY(0);
 }
 
-/* Estilos para inputs */
 input {
     background-color: white;
     border: 2px solid #e2e8f0;
@@ -108,7 +106,6 @@ input:focus {
     color: white;
 }
 
-/* Animaciones */
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
@@ -118,20 +115,17 @@ input:focus {
     animation: fadeIn 0.3s ease forwards;
 }
 
-/* Primero, resetear los fondos oscuros */
 .bg-gray-800,
 .bg-gray-900,
 .bg-black {
     background-color: var(--background-color) !important;
 }
 
-/* Asegurarnos de que el texto sea legible */
 .text-gray-300,
 .text-gray-400 {
     color: var(--text-color) !important;
 }
 
-/* Estilo para el botón "Editar" */
 button.edit {
     background-color: #e2e8f0;
     color: var(--text-color);
