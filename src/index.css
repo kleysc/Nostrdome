@@ -8,8 +8,10 @@
   --background-color: #ffffff;
   --text-color: #1e293b;
   --message-bg: #f3f4f6;
-  --message-own-bg: #00875A;
+  --message-own-bg: #4CAF50;
   --message-own-text: #ffffff;
+  --message-other-bg: #e2e8f0;
+  --message-other-text: #1e293b;
 }
 
 body {
@@ -21,7 +23,8 @@ body {
 
 /* Estilos para mensajes */
 .message {
-    background-color: var(--message-bg);
+    background-color: var(--message-other-bg);
+    color: var(--message-other-text);
     border-radius: 16px;
     padding: 12px 16px;
     margin: 8px 0;
@@ -40,6 +43,10 @@ body {
     margin-left: auto;
     margin-right: 0;
     border: 1px solid var(--primary-color);
+}
+
+.message.user strong {
+    color: var(--message-own-text);
 }
 
 button {

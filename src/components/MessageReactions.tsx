@@ -23,15 +23,19 @@ const MessageReactions: React.FC<ReactionProps> = ({ messageId, pool, publicKey,
       '#e': [messageId]
     }]);
 
-    sub.on('event', (event: Event) => {
+    const handleEvent = (event: Event) => {
       const emoji = event.content;
-      if (reactions[emoji]) {
-        setReactions(prev => ({
-          ...prev,
-          [emoji]: new Set([...prev[emoji], event.pubkey])
-        }));
-      }
-    });
+      setReactions(prev => {
+        const updatedReactions = { ...prev };
+        if (!updatedReactions[emoji]) {
+          updatedReactions[emoji] = new Set();
+        }
+        updatedReactions[emoji].add(event.pubkey);
+        return updatedReactions;
+      });
+    };
+
+    sub.on('event', handleEvent);
 
     return () => {
       sub.unsub();
@@ -53,6 +57,16 @@ const MessageReactions: React.FC<ReactionProps> = ({ messageId, pool, publicKey,
     event.sig = getSignature(event, privateKey);
 
     await pool.publish(relayUrls, event);
+
+    // Actualiza el estado local para incluir tu propia reacción
+    setReactions(prev => {
+      const updatedReactions = { ...prev };
+      if (!updatedReactions[emoji]) {
+        updatedReactions[emoji] = new Set();
+      }
+      updatedReactions[emoji].add(publicKey);
+      return updatedReactions;
+    });
   };
 
   return (

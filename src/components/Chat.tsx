@@ -251,19 +251,17 @@ const Chat: React.FC<ChatProps> = ({ privateKey, publicKey, pool }) => {
             </div>
             <div className="mt-2 flex items-center gap-2">
               <button 
-                onClick={() => handleReply(msg)} // Botón para responder
-                className="text-blue-400 hover:text-blue-300 text-sm flex items-center gap-1"
+                onClick={() => handleReply(msg)} 
+                className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
               >
-                <span>↩️</span>
-                <span>Responder</span>
+                Responder
               </button>
-              {msg.pubkey === publicKey && ( // Solo mostrar el botón de editar si el mensaje es del usuario
+              {msg.pubkey === publicKey && (
                 <button 
-                  onClick={() => handleEditMessage(msg)} // Botón para editar
-                  className="text-blue-400 hover:text-blue-300 text-sm flex items-center gap-1"
+                  onClick={() => handleEditMessage(msg)} 
+                  className="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600"
                 >
-                  <span>✏️</span>
-                  <span>Editar</span>
+                  Editar
                 </button>
               )}
               <MessageReactions 
