@@ -87,70 +87,65 @@ const Chat: React.FC<ChatProps> = ({ privateKey, publicKey, pool }) => {
       const event: Event<number> = {
         id: '',
         sig: '',
-        kind: 1,
+        kind: replyingTo ? 4 : 1,
         pubkey: publicKey,
         created_at: Math.floor(Date.now() / 1000),
-        tags: replyingTo ? [['e', replyingTo.id], ['p', replyingTo.pubkey]] : [],
+        tags: replyingTo ? [
+          ['e', replyingTo.id], 
+          ['p', replyingTo.pubkey]
+        ] : [],
         content: input,
       };
 
-      // Si estamos editando un mensaje, eliminamos el mensaje original y enviamos uno nuevo
-      if (editingMessage) {
-        // Aquí podrías agregar lógica para marcar el mensaje como eliminado si es necesario
-        const deleteEvent: Event<number> = {
-          id: editingMessage.id, // ID del mensaje a eliminar
-          sig: '',
-          kind: 5, // Suponiendo que el tipo 5 es para eliminar mensajes
-          pubkey: publicKey,
-          created_at: Math.floor(Date.now() / 1000),
-          tags: [],
-          content: "Mensaje eliminado", // Mensaje de eliminación
-        };
-
-        // Publicar el evento de eliminación
-        await pool.publish(relayUrls, deleteEvent);
-
-        // Actualizar el estado de mensajes para reflejar la eliminación
-        setMessages((prevMessages) => 
-          prevMessages.filter((msg) => msg.id !== editingMessage.id)
-        );
+      if (event.kind === 4 && replyingTo) {
+        try {
+          event.content = await nip04.encrypt(
+            privateKey,
+            replyingTo.pubkey,
+            input
+          );
+        } catch (error) {
+          console.error("Error encrypting message:", error);
+          return;
+        }
       }
 
-      // Enviar el nuevo mensaje
       event.id = getEventHash(event);
       event.sig = getSignature(event, privateKey);
 
       await pool.publish(relayUrls, event);
 
-      // Agregar el nuevo mensaje al estado
       const newMessage: Message = {
         id: event.id,
         pubkey: publicKey,
         content: input,
         created_at: event.created_at,
         isPrivate: event.kind === 4,
-        recipient: event.tags.find((tag) => tag[0] === "p")?.[1],
+        recipient: replyingTo?.pubkey,
       };
-      setMessages((prevMessages) => [...prevMessages, newMessage].sort((a, b) => a.created_at - b.created_at));
+
+      setMessages((prevMessages) => 
+        [...prevMessages, newMessage].sort((a, b) => a.created_at - b.created_at)
+      );
 
       setInput("");
-      setReplyingTo(null); // Limpiar el estado de respuesta
-      setEditingMessage(null); // Limpiar el estado de edición
+      setReplyingTo(null);
+      setEditingMessage(null);
     } catch (error) {
       console.error("Error sending message:", error);
     }
   };
 
   const handleEditMessage = (msg: Message) => {
-    setInput(msg.content); // Cargar el contenido del mensaje en el input
-    setEditingMessage(msg); // Establecer el mensaje como el que se está editando
-    setReplyingTo(null); // Limpiar el estado de respuesta al editar
+    setInput(msg.content);
+    setEditingMessage(msg);
+    setReplyingTo(null);
   };
 
   const handleReply = (msg: Message) => {
-    setInput(msg.content); // Cargar el contenido del mensaje en el input
-    setReplyingTo(msg); // Establecer el mensaje como el que se está respondiendo
-    setEditingMessage(null); // Limpiar el estado de edición al responder
+    setInput(msg.content);
+    setReplyingTo(msg);
+    setEditingMessage(null);
   };
 
   const formatPubkey = (pubkey: string, short: boolean = false): string => {
@@ -184,7 +179,6 @@ const Chat: React.FC<ChatProps> = ({ privateKey, publicKey, pool }) => {
     urls.forEach((url, index) => {
       const startIndex = content.indexOf(url, lastIndex);
       
-      // Agregar el texto antes de la URL
       if (startIndex > lastIndex) {
         elements.push(
           <span key={`text-${index}`}>
@@ -193,7 +187,6 @@ const Chat: React.FC<ChatProps> = ({ privateKey, publicKey, pool }) => {
         );
       }
 
-      // Agregar la imagen o el enlace
       if (isImageUrl(url)) {
         elements.push(
           <div key={`image-${index}`} className="mt-2 max-w-sm">
@@ -217,7 +210,6 @@ const Chat: React.FC<ChatProps> = ({ privateKey, publicKey, pool }) => {
       lastIndex = startIndex + url.length;
     });
 
-    // Agregar el texto restante después de la última URL
     if (lastIndex < content.length) {
       elements.push(
         <span key="text-final">
@@ -285,7 +277,7 @@ const Chat: React.FC<ChatProps> = ({ privateKey, publicKey, pool }) => {
               <div className="text-sm truncate">{replyingTo.content}</div>
             </div>
             <button 
-              onClick={() => setReplyingTo(null)} // Cancelar respuesta
+              onClick={() => setReplyingTo(null)}
               className="text-red-400 hover:text-red-300"
             >
               ✕
@@ -325,7 +317,6 @@ const Chat: React.FC<ChatProps> = ({ privateKey, publicKey, pool }) => {
   );
 };
 
-// Componente de Reacciones
 interface ReactionProps {
   messageId: string;
   pool: SimplePool;
