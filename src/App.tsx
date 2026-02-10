@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { SimplePool, getPublicKey, generatePrivateKey, nip19, Event } from 'nostr-tools';
+import { SimplePool, getPublicKey, generatePrivateKey, nip19, Event, getEventHash, getSignature } from 'nostr-tools';
 import Chat from './components/Chat';
 import Login from './components/Login';
 import RelayStatus from './components/RelayStatus';
@@ -7,6 +7,7 @@ import ThemeSelector from './components/ThemeSelector';
 import Notifications, { type ShowNotificationFn } from './components/Notifications';
 import ContactList from './components/ContactList';
 import ChannelList from './components/ChannelList';
+import ProfileEditor, { type ProfileForm } from './components/ProfileEditor';
 import { relayUrls } from './config';
 
 export interface Contact {
@@ -35,6 +36,10 @@ function App() {
   const [selectedContact, setSelectedContact] = useState<string | null>(null);
   const [channels, setChannels] = useState<Channel[]>([]);
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
+  const [unifiedFeed, setUnifiedFeed] = useState(false);
+  const [myProfile, setMyProfile] = useState<{ name?: string; display_name?: string; nip05?: string; picture?: string } | null>(null);
+  const [showProfileEditor, setShowProfileEditor] = useState(false);
+  const pendingNicknameRef = useRef<string | null>(null);
   const showNotificationRef = useRef<ShowNotificationFn | null>(null);
   const [toast, setToast] = useState<{ title: string; body: string } | null>(null);
   const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -59,11 +64,11 @@ function App() {
         return;
       }
       const sub0 = pool.sub(relayUrls, [{ kinds: [0], authors: pubkeys }]);
-      const meta: Record<string, { name?: string; about?: string }> = {};
+      const meta: Record<string, { name?: string; display_name?: string; nip05?: string; about?: string }> = {};
       sub0.on('event', (e: Event) => {
         try {
           const d = JSON.parse(e.content || '{}');
-          meta[e.pubkey] = { name: d.name, about: d.about };
+          meta[e.pubkey] = { name: d.name, display_name: d.display_name, nip05: d.nip05, about: d.about };
         } catch {}
       });
       sub0.on('eose', () => {
@@ -71,7 +76,7 @@ function App() {
         setContacts(
           pubkeys.map((p) => ({
             pubkey: p,
-            name: meta[p]?.name || petnames[p] || nip19.npubEncode(p).slice(0, 12) + '…',
+            name: meta[p]?.nip05 ?? meta[p]?.display_name ?? meta[p]?.name ?? petnames[p] ?? nip19.npubEncode(p).slice(0, 12) + '…',
             about: meta[p]?.about,
           }))
         );
@@ -81,7 +86,7 @@ function App() {
   }, []);
 
   const loadChannels = useCallback((pool: SimplePool) => {
-    const sub = pool.sub(relayUrls, [{ kinds: [40], limit: 50 }]);
+    const sub = pool.sub(relayUrls, [{ kinds: [40], limit: 100 }]);
     const byId: Record<string, Channel> = {};
     sub.on('event', (event: Event) => {
       try {
@@ -137,7 +142,48 @@ function App() {
     if (pool) loadChannels(pool);
   }, [pool, loadChannels]);
 
-  const handleLogin = (inputPrivateKey: string) => {
+  // NIP-05 / kind 0: perfil del usuario para mostrar nombre en el header
+  useEffect(() => {
+    if (!pool || !publicKey) {
+      setMyProfile(null);
+      return;
+    }
+    const privateKey = localStorage.getItem('nostrPrivateKey');
+    const pendingNick = pendingNicknameRef.current;
+    if (privateKey && pendingNick) {
+      pendingNicknameRef.current = null;
+      const content = JSON.stringify({ name: pendingNick });
+      const event: Event = {
+        kind: 0,
+        pubkey: publicKey,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [],
+        content,
+        id: '',
+        sig: '',
+      };
+      event.id = getEventHash(event);
+      event.sig = getSignature(event, privateKey);
+      pool.publish(relayUrls, event).catch(() => {});
+      setMyProfile((p) => ({ ...p, name: pendingNick }));
+    }
+    const sub = pool.sub(relayUrls, [{ kinds: [0], authors: [publicKey], limit: 1 }]);
+    sub.on('event', (event: Event) => {
+      try {
+        const d = JSON.parse(event.content || '{}');
+        setMyProfile({ name: d.name, display_name: d.display_name, nip05: d.nip05, picture: d.picture });
+      } catch {
+        setMyProfile(null);
+      }
+    });
+    sub.on('eose', () => sub.unsub());
+    return () => sub.unsub();
+  }, [pool, publicKey]);
+
+  const handleLogin = (inputPrivateKey: string, initialNickname?: string) => {
+    if (initialNickname?.trim()) {
+      pendingNicknameRef.current = initialNickname.trim();
+    }
     if (inputPrivateKey) {
       setPrivateKey(inputPrivateKey);
       const derivedPublicKey = getPublicKey(inputPrivateKey);
@@ -159,7 +205,7 @@ function App() {
   };
 
   return (
-    <div className="h-screen app-theme font-mono flex flex-col overflow-hidden">
+    <div className="h-screen app-theme flex flex-col overflow-hidden">
       {toast && (
         <div
           className="fixed top-4 left-1/2 -translate-x-1/2 z-30 max-w-md w-full mx-4 px-4 py-3 rounded-lg shadow-lg border flex items-start gap-3"
@@ -185,13 +231,28 @@ function App() {
           </button>
         </div>
       )}
-      <header className="shrink-0 header-theme p-4 z-10 flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl">Nostrdome</h1>
+      <header className="shrink-0 header-theme px-4 py-2.5 z-10 flex flex-wrap items-center justify-between gap-3 shadow-sm border-b border-[var(--border-subtle)]">
+        <h1 className="text-lg font-semibold tracking-tight text-[var(--text-color)]">Nostrdome</h1>
         {publicKey && (
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="text-sm truncate max-w-[180px] sm:max-w-none" title={nip19.npubEncode(publicKey)}>
-                {nip19.npubEncode(publicKey).slice(0, 12)}…
-              </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={() => pool && privateKey && setShowProfileEditor(true)}
+                className="header-identity-pill max-w-[200px] sm:max-w-[240px] min-w-0"
+                title={`${nip19.npubEncode(publicKey)} — Clic para editar perfil`}
+              >
+                <span className="header-identity-avatar">
+                  {myProfile?.picture ? (
+                    <img src={myProfile.picture} alt="" />
+                  ) : (
+                    (myProfile?.name ?? myProfile?.display_name ?? '?').charAt(0).toUpperCase() || '?'
+                  )}
+                </span>
+                <span className="truncate">
+                  {myProfile?.nip05 ?? myProfile?.display_name ?? myProfile?.name ?? (nip19.npubEncode(publicKey).slice(0, 10) + '…')}
+                </span>
+              </button>
+              <span className="header-controls-divider" aria-hidden />
               <ThemeSelector currentTheme={theme} onThemeChange={setTheme} />
               <Notifications
                 onNotificationChange={() => {}}
@@ -199,24 +260,43 @@ function App() {
                 publicKey={publicKey}
               />
               <button
+                type="button"
                 onClick={handleLogout}
-                className="btn-logout px-2 py-1 rounded"
+                className="text-sm text-[var(--text-muted)] hover:text-[var(--text-color)] px-2 py-1.5 rounded hover:bg-[var(--sidebar-hover)] transition-colors"
+                title="Cerrar sesión"
               >
-                Logout
+                Salir
               </button>
             </div>
         )}
       </header>
+      {showProfileEditor && pool && privateKey && publicKey && (
+        <ProfileEditor
+          pool={pool}
+          privateKey={privateKey}
+          publicKey={publicKey}
+          currentProfile={myProfile}
+          onSaved={(p: ProfileForm) => setMyProfile({ name: p.name, display_name: p.display_name, nip05: p.nip05, picture: p.picture })}
+          onClose={() => setShowProfileEditor(false)}
+        />
+      )}
       <main className="flex-1 min-h-0 flex p-4 pt-4 overflow-hidden">
         {privateKey && publicKey && pool ? (
           <>
-            <div className="w-56 shrink-0 border-r border-gray-700 flex flex-col min-h-0 overflow-hidden">
+            <div className="w-60 shrink-0 sidebar-bg flex flex-col min-h-0 overflow-hidden border-r border-[var(--border-subtle)] relative">
               <ChannelList
                 channels={channels}
                 selectedChannelId={selectedChannelId}
+                unifiedFeed={unifiedFeed}
                 onSelectChannel={(id) => {
                   setSelectedChannelId(id);
+                  setUnifiedFeed(false);
                   if (id) setSelectedContact(null);
+                }}
+                onSelectUnified={() => {
+                  setUnifiedFeed(true);
+                  setSelectedChannelId(null);
+                  setSelectedContact(null);
                 }}
                 pool={pool}
                 privateKey={privateKey}
@@ -229,10 +309,12 @@ function App() {
                 onSelectContact={(pubkey) => {
                   setSelectedContact((prev) => (prev === pubkey ? null : pubkey));
                   setSelectedChannelId(null);
+                  setUnifiedFeed(false);
                 }}
               />
+              <RelayStatus pool={pool} />
             </div>
-            <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
+            <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden chat-bg">
               <Chat
                 privateKey={privateKey}
                 publicKey={publicKey}
@@ -240,6 +322,8 @@ function App() {
                 selectedContact={selectedContact}
                 selectedChannelId={selectedChannelId}
                 channelName={selectedChannelId ? channels.find((c) => c.id === selectedChannelId)?.name : undefined}
+                unifiedFeed={unifiedFeed}
+                channels={channels}
                 onNotify={handleNotify}
               />
             </div>
@@ -250,11 +334,6 @@ function App() {
           </div>
         )}
       </main>
-      {pool && publicKey && (
-        <div className="fixed bottom-4 right-4 z-20">
-          <RelayStatus pool={pool} />
-        </div>
-      )}
     </div>
   );
 }

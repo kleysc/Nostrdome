@@ -2,12 +2,13 @@ import React, { useState } from "react";
 import { generatePrivateKey, getPublicKey, nip19 } from "nostr-tools";
 
 interface LoginProps {
-  onLogin: (privateKey: string) => void;
+  onLogin: (privateKey: string, initialNickname?: string) => void;
 }
 
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [inputKey, setInputKey] = useState("");
   const [showPopup, setShowPopup] = useState(false);
+  const [nickname, setNickname] = useState("");
   const [generatedKeys, setGeneratedKeys] = useState({
     privateKey: "",
     publicKey: "",
@@ -29,13 +30,15 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         privateKey: nip19.nsecEncode(newPrivateKey),
         publicKey: nip19.npubEncode(newPublicKey),
       });
+      setNickname("");
       setShowPopup(true);
     }
   };
 
   const handleClosePopup = () => {
     setShowPopup(false);
-    onLogin(nip19.decode(generatedKeys.privateKey).data as string);
+    const nick = nickname.trim();
+    onLogin(nip19.decode(generatedKeys.privateKey).data as string, nick || undefined);
   };
 
   return (
@@ -72,6 +75,19 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               Important: Save these keys securely. You'll need the private key
               to log in next time.
             </p>
+            <div className="mb-4">
+              <label htmlFor="new-keys-nickname" className="block text-sm font-medium text-gray-300 mb-1">
+                Tu nombre o nickname (opcional)
+              </label>
+              <input
+                id="new-keys-nickname"
+                type="text"
+                value={nickname}
+                onChange={(e) => setNickname(e.target.value)}
+                placeholder="ej. alice"
+                className="w-full bg-gray-700 text-gray-100 p-2 rounded border border-gray-600 focus:outline-none focus:ring-1 focus:ring-green-500 placeholder-gray-500"
+              />
+            </div>
             <button
               onClick={handleClosePopup}
               className="w-full bg-green-700 text-white px-4 py-2 rounded hover:bg-green-600"
