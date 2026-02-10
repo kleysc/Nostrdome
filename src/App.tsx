@@ -164,7 +164,7 @@ function App() {
       };
       event.id = getEventHash(event);
       event.sig = getSignature(event, privateKey);
-      pool.publish(relayUrls, event).catch(() => {});
+      Promise.all(pool.publish(relayUrls, event)).catch(() => {});
       setMyProfile((p) => ({ ...p, name: pendingNick }));
     }
     const sub = pool.sub(relayUrls, [{ kinds: [0], authors: [publicKey], limit: 1 }]);
