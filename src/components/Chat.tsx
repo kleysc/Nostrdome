@@ -6,15 +6,22 @@ import TypingIndicator from './TypingIndicator';
 import StarredMessages, { loadStarredFromStorage, saveStarredToStorage, type StarredMessage as StarredMsg } from './StarredMessages';
 import MessageSearch from './MessageSearch';
 
+interface ChannelInfo {
+  id: string;
+  name: string;
+}
+
 interface ChatProps {
   privateKey: string;
   publicKey: string;
   pool: SimplePool;
   selectedContact?: string | null;
-  /** Canal NIP-28 seleccionado (kind 40 event id). Si está definido, se muestran y envían mensajes kind 42. */
   selectedChannelId?: string | null;
-  /** Nombre del canal (para mostrar en la UI). */
   channelName?: string;
+  /** Vista "Todo": feed unificado (kind 1 + mensajes de canales). */
+  unifiedFeed?: boolean;
+  /** Canales para feed unificado y nombres. */
+  channels?: ChannelInfo[];
   onNotify?: (title: string, body: string, data?: { messageId?: string; type?: string }) => void;
 }
 
@@ -25,47 +32,128 @@ interface Message {
   created_at: number;
   isPrivate: boolean;
   recipient?: string;
-  replyTo?: string; 
+  replyTo?: string;
   replyContent?: string;
+  /** En feed unificado: canal del mensaje (kind 42). */
+  channelId?: string;
+  channelName?: string;
 }
 
 const TYPING_DEBOUNCE_MS = 800;
 const TYPING_THROTTLE_MS = 2000;
 
-/** Parsea @npub1xxx... al inicio del mensaje para enviar DM. Devuelve { dmPubkey, content } o null. */
-function parseDmMention(text: string): { dmPubkey: string; content: string } | null {
+type DmMentionResult =
+  | { dmPubkey: string; content: string }
+  | { mention: string; content: string };
+
+/** Parsea @npub1xxx... o @username / @user@domain (NIP-05) al inicio para enviar DM. */
+function parseDmMention(text: string): DmMentionResult | null {
   const trimmed = text.trim();
-  const match = trimmed.match(/^@(npub1[a-zA-Z0-9]+)\s*(.*)$/s);
-  if (!match) return null;
-  try {
-    const decoded = nip19.decode(match[1]);
-    if (decoded.type !== 'npub') return null;
-    const content = (match[2] || '').trim();
-    return { dmPubkey: decoded.data as string, content };
-  } catch {
-    return null;
+  // @npub1...
+  const npubMatch = trimmed.match(/^@(npub1[a-zA-Z0-9]+)\s*(.*)$/s);
+  if (npubMatch) {
+    try {
+      const decoded = nip19.decode(npubMatch[1]);
+      if (decoded.type !== 'npub') return null;
+      return { dmPubkey: decoded.data as string, content: (npubMatch[2] || '').trim() };
+    } catch {
+      return null;
+    }
   }
+  // @username o @user@domain.com (sin espacio en el identificador)
+  const mentionMatch = trimmed.match(/^@([^\s]+)\s*(.*)$/s);
+  if (mentionMatch) {
+    const mention = mentionMatch[1].trim();
+    const content = (mentionMatch[2] || '').trim();
+    if (!mention) return null;
+    return { mention, content };
+  }
+  return null;
+}
+
+/** Resuelve @mention a pubkey: caché de perfiles (name/display_name/nip05) o NIP-05. */
+async function resolveMentionToPubkey(
+  mention: string,
+  profiles: Record<string, { name?: string; display_name?: string; nip05?: string }>
+): Promise<string | null> {
+  const mentionLower = mention.toLowerCase();
+  for (const [pubkey, p] of Object.entries(profiles)) {
+    if (p.nip05 && p.nip05.toLowerCase() === mentionLower) return pubkey;
+    if (p.display_name && p.display_name.toLowerCase() === mentionLower) return pubkey;
+    if (p.name && p.name.toLowerCase() === mentionLower) return pubkey;
+  }
+  if (mention.includes('@')) {
+    try {
+      const [local, domain] = mention.split('@').filter(Boolean);
+      if (!local || !domain) return null;
+      const url = `https://${domain}/.well-known/nostr.json?name=${encodeURIComponent(local)}`;
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      const data = (await res.json()) as { names?: Record<string, string> };
+      const hex = data.names?.[local];
+      return hex ?? null;
+    } catch {
+      return null;
+    }
+  }
+  return null;
 }
 
 const MAX_NOTIFIED_IDS = 200;
 
-const Chat: React.FC<ChatProps> = ({ privateKey, publicKey, pool, selectedContact, selectedChannelId, channelName, onNotify }) => {
+const DRAFT_KEY = 'nostrdome_draft';
+const DRAFT_DEBOUNCE_MS = 500;
+
+function getDraftKey(selectedChannelId: string | null, selectedContact: string | null, unifiedFeed: boolean): string {
+  if (unifiedFeed) return `${DRAFT_KEY}_unified`;
+  if (selectedChannelId) return `${DRAFT_KEY}_channel_${selectedChannelId}`;
+  if (selectedContact) return `${DRAFT_KEY}_dm_${selectedContact}`;
+  return `${DRAFT_KEY}_global`;
+}
+
+const Chat: React.FC<ChatProps> = ({ privateKey, publicKey, pool, selectedContact, selectedChannelId, channelName, unifiedFeed = false, channels = [], onNotify }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [channelMessages, setChannelMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState<string>("");
+  const [unifiedMessages, setUnifiedMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState<string>('');
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
+  const [threadRoot, setThreadRoot] = useState<Message | null>(null);
+  const [threadReplies, setThreadReplies] = useState<Message[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastTypingPublishRef = useRef<number>(0);
   const notifiedIdsRef = useRef<Set<string>>(new Set());
+  const draftTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prevDraftKeyRef = useRef<string>('');
   const [starredMessages, setStarredMessages] = useState<StarredMsg[]>(() => loadStarredFromStorage());
   const [showStarredPanel, setShowStarredPanel] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [profiles, setProfiles] = useState<Record<string, { name?: string; display_name?: string; nip05?: string }>>({});
 
   useEffect(() => {
     saveStarredToStorage(starredMessages);
   }, [starredMessages]);
+
+  // NIP-05 / kind 0: cargar perfiles de autores para mostrar nombre en vez de pubkey
+  useEffect(() => {
+    const pubkeys = new Set<string>();
+    pubkeys.add(publicKey);
+    [...messages, ...channelMessages, ...unifiedMessages].forEach((m) => pubkeys.add(m.pubkey));
+    const list = Array.from(pubkeys).slice(0, 150);
+    if (list.length === 0) return;
+    const sub = pool.sub(relayUrls, [{ kinds: [0], authors: list }]);
+    sub.on('event', (event: Event) => {
+      try {
+        const d = JSON.parse(event.content || '{}');
+        setProfiles((prev) => ({
+          ...prev,
+          [event.pubkey]: { name: d.name, display_name: d.display_name, nip05: d.nip05 },
+        }));
+      } catch {}
+    });
+    return () => sub.unsub();
+  }, [pool, publicKey, messages, channelMessages, unifiedMessages]);
 
   const publishTyping = useCallback(() => {
     const now = Date.now();
@@ -186,9 +274,118 @@ const Chat: React.FC<ChatProps> = ({ privateKey, publicKey, pool, selectedContac
     };
   }, [pool, selectedChannelId]);
 
+  // Feed unificado: kind 1 + kind 42 de varios canales
+  useEffect(() => {
+    if (!unifiedFeed || channels.length === 0) {
+      setUnifiedMessages([]);
+      return;
+    }
+    const channelIds = channels.slice(0, 25).map((c) => c.id);
+    const byId: Record<string, { id: string; name: string }> = {};
+    channels.forEach((c) => { byId[c.id] = { id: c.id, name: c.name }; });
+
+    const sub = pool.sub(relayUrls, [
+      { kinds: [1], limit: 50 },
+      { kinds: [42], '#e': channelIds, limit: 100 },
+    ]);
+    sub.on('event', (event: Event) => {
+      if (event.kind === 1) {
+        const newMsg: Message = {
+          id: event.id,
+          pubkey: event.pubkey,
+          content: event.content,
+          created_at: event.created_at,
+          isPrivate: false,
+        };
+        setUnifiedMessages((prev) => {
+          if (prev.some((m) => m.id === newMsg.id)) return prev;
+          return [...prev, newMsg].sort((a, b) => a.created_at - b.created_at);
+        });
+        return;
+      }
+      if (event.kind === 42) {
+        const rootTag = event.tags.find((t) => t[0] === 'e' && t[3] === 'root');
+        const channelId = rootTag?.[1];
+        if (!channelId || !byId[channelId]) return;
+        const newMsg: Message = {
+          id: event.id,
+          pubkey: event.pubkey,
+          content: event.content,
+          created_at: event.created_at,
+          isPrivate: false,
+          channelId,
+          channelName: byId[channelId].name,
+        };
+        setUnifiedMessages((prev) => {
+          if (prev.some((m) => m.id === newMsg.id)) return prev;
+          return [...prev, newMsg].sort((a, b) => a.created_at - b.created_at);
+        });
+      }
+    });
+    return () => sub.unsub();
+  }, [pool, unifiedFeed, channels]);
+
+  // Borrador por contexto: al cambiar contexto, guardar en clave anterior y cargar el nuevo
+  useEffect(() => {
+    const key = getDraftKey(selectedChannelId ?? null, selectedContact ?? null, unifiedFeed);
+    if (prevDraftKeyRef.current && prevDraftKeyRef.current !== key && input.trim()) {
+      try {
+        localStorage.setItem(prevDraftKeyRef.current, input);
+      } catch {}
+    }
+    prevDraftKeyRef.current = key;
+    try {
+      const saved = localStorage.getItem(key);
+      if (saved != null) setInput(saved);
+    } catch {}
+  }, [selectedChannelId, selectedContact, unifiedFeed]);
+
+  // Borrador: guardar con debounce al escribir
+  useEffect(() => {
+    if (draftTimeoutRef.current) clearTimeout(draftTimeoutRef.current);
+    const key = getDraftKey(selectedChannelId ?? null, selectedContact ?? null, unifiedFeed);
+    draftTimeoutRef.current = setTimeout(() => {
+      draftTimeoutRef.current = null;
+      try {
+        if (input.trim()) localStorage.setItem(key, input);
+        else localStorage.removeItem(key);
+      } catch {}
+    }, DRAFT_DEBOUNCE_MS);
+    return () => {
+      if (draftTimeoutRef.current) clearTimeout(draftTimeoutRef.current);
+    };
+  }, [input, selectedChannelId, selectedContact, unifiedFeed]);
+
+  // Hilos: suscripción a respuestas del mensaje raíz
+  useEffect(() => {
+    if (!threadRoot || !selectedChannelId) {
+      setThreadReplies([]);
+      return;
+    }
+    const sub = pool.sub(relayUrls, [
+      { kinds: [42], '#e': [threadRoot.id], limit: 50 },
+    ]);
+    sub.on('event', (event: Event) => {
+      const replyTag = event.tags.find((t) => t[0] === 'e' && t[3] === 'reply' && t[1] === threadRoot.id);
+      if (!replyTag || event.id === threadRoot.id) return;
+      const newMsg: Message = {
+        id: event.id,
+        pubkey: event.pubkey,
+        content: event.content,
+        created_at: event.created_at,
+        isPrivate: false,
+      };
+      setThreadReplies((prev) => {
+        if (prev.some((m) => m.id === newMsg.id)) return prev;
+        return [...prev, newMsg].sort((a, b) => a.created_at - b.created_at);
+      });
+    });
+    return () => sub.unsub();
+  }, [pool, threadRoot, selectedChannelId]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, channelMessages]);
+  }, [messages, channelMessages, unifiedMessages]);
 
   const sendMessage = async () => {
     const rawInput = input.trim();
@@ -233,13 +430,29 @@ const Chat: React.FC<ChatProps> = ({ privateKey, publicKey, pool, selectedContac
       return;
     }
 
-    // DM por mención @npub1... (tiene prioridad si no hay contacto seleccionado ni respuesta)
-    const dmFromMention = !selectedContact && !replyingTo ? parseDmMention(rawInput) : null;
-    const dmRecipient = selectedContact || replyingTo?.pubkey || dmFromMention?.dmPubkey;
-    const isDM = !!dmRecipient;
-    const recipientPubkey = dmRecipient || (replyingTo ? replyingTo.pubkey : '');
-    const contentToSend = dmFromMention ? dmFromMention.content : rawInput;
-    if (isDM && !contentToSend && !replyingTo) return; // mensaje vacío solo con @npub
+    // DM por mención @npub, @username o @user@domain (NIP-05)
+    let recipientPubkey = selectedContact || replyingTo?.pubkey || '';
+    let contentToSend = rawInput;
+    if (!selectedContact && !replyingTo) {
+      const dmFromMention = parseDmMention(rawInput);
+      if (dmFromMention) {
+        if ('dmPubkey' in dmFromMention) {
+          recipientPubkey = dmFromMention.dmPubkey;
+          contentToSend = dmFromMention.content;
+        } else {
+          const resolved = await resolveMentionToPubkey(dmFromMention.mention, profiles);
+          if (resolved) {
+            recipientPubkey = resolved;
+            contentToSend = dmFromMention.content;
+          } else {
+            onNotify?.('Usuario no encontrado', `No se pudo resolver @${dmFromMention.mention}`);
+            return;
+          }
+        }
+      }
+    }
+    const isDM = !!recipientPubkey;
+    if (isDM && !contentToSend && !replyingTo) return;
 
     try {
       const event: Event<number> = {
@@ -325,6 +538,15 @@ const Chat: React.FC<ChatProps> = ({ privateKey, publicKey, pool, selectedContac
     }
   };
 
+  /** Muestra NIP-05, display_name o name (kind 0) si existe; si no, npub corto. */
+  const formatDisplayName = (pubkey: string): string => {
+    const p = profiles[pubkey];
+    if (p?.nip05) return p.nip05;
+    if (p?.display_name) return p.display_name;
+    if (p?.name) return p.name;
+    return formatPubkey(pubkey, true);
+  };
+
   const isImageUrl = (url: string): boolean => {
     return /\.(jpg|jpeg|png|gif|webp)$/i.test(url);
   };
@@ -388,44 +610,55 @@ const Chat: React.FC<ChatProps> = ({ privateKey, publicKey, pool, selectedContac
     return <div>{elements}</div>;
   };
 
-  const displayMessages = selectedChannelId
-    ? channelMessages.filter(
+  const displayMessages = unifiedFeed
+    ? unifiedMessages.filter(
         (msg) =>
           !searchQuery.trim() ||
           msg.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          msg.pubkey.toLowerCase().includes(searchQuery.toLowerCase())
+          msg.pubkey.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (msg.channelName && msg.channelName.toLowerCase().includes(searchQuery.toLowerCase()))
       )
-    : (selectedContact
-        ? messages.filter(
-            (msg) =>
-              msg.isPrivate &&
-              (msg.pubkey === selectedContact || msg.recipient === selectedContact)
-          )
-        : messages
-      ).filter(
-        (msg) =>
-          !searchQuery.trim() ||
-          msg.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          msg.pubkey.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+    : selectedChannelId
+      ? channelMessages.filter(
+          (msg) =>
+            !searchQuery.trim() ||
+            msg.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            msg.pubkey.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+      : (selectedContact
+          ? messages.filter(
+              (msg) =>
+                msg.isPrivate &&
+                (msg.pubkey === selectedContact || msg.recipient === selectedContact)
+            )
+          : messages
+        ).filter(
+          (msg) =>
+            !searchQuery.trim() ||
+            msg.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            msg.pubkey.toLowerCase().includes(searchQuery.toLowerCase())
+        );
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-4 py-2 border-b border-gray-700 flex-wrap gap-2">
-        {selectedChannelId && channelName && (
-          <span className="text-sm font-semibold opacity-90"># {channelName}</span>
+      <div className="flex items-center justify-between px-4 py-2 border-b border-[var(--border-subtle)] flex-wrap gap-2 bg-[var(--chat-bg)]">
+        {unifiedFeed && (
+          <span className="text-[15px] font-semibold text-[var(--text-color)]">📋 Todo</span>
+        )}
+        {!unifiedFeed && selectedChannelId && channelName && (
+          <span className="text-[15px] font-semibold text-[var(--text-color)]"># {channelName}</span>
         )}
         <button
           type="button"
           onClick={() => setShowStarredPanel((v) => !v)}
-          className="text-sm opacity-80 hover:opacity-100 flex items-center gap-1"
+          className="text-sm text-[var(--text-muted)] hover:text-[var(--text-color)] flex items-center gap-1 px-2 py-1 rounded hover:bg-[var(--sidebar-hover)]"
         >
           ⭐ Destacados {starredMessages.length > 0 && `(${starredMessages.length})`}
         </button>
         <MessageSearch onSearch={setSearchQuery} />
       </div>
       {showStarredPanel && (
-        <div className="p-4 border-b border-gray-700 max-h-48 overflow-y-auto">
+        <div className="p-4 border-b border-[var(--border-subtle)] max-h-48 overflow-y-auto bg-[var(--sidebar-bg)]">
           <StarredMessages
             messages={starredMessages}
             onMessagesChange={(list) => {
@@ -435,35 +668,48 @@ const Chat: React.FC<ChatProps> = ({ privateKey, publicKey, pool, selectedContac
           />
         </div>
       )}
-      <div className="flex-grow overflow-y-auto mb-16 space-y-2 p-4">
+      <div className="flex flex-1 min-h-0">
+        <div className={`flex-grow overflow-y-auto space-y-1 px-4 py-3 chat-bg ${threadRoot ? 'mr-80 shrink-0' : ''}`}>
         {displayMessages.map((msg) => (
-          <div key={msg.id} id={msg.id}
-            className={`message p-2 rounded-lg ${
-              msg.pubkey === publicKey 
-                ? "self-end bg-green-600 text-white" 
-                : "self-start bg-gray-100"
-            }`}
+          <div
+            key={msg.id}
+            id={msg.id}
+            className={`message ${msg.pubkey === publicKey ? 'user self-end' : 'self-start'}`}
           >
-            <div className="flex items-center gap-2 mb-1">
-              <span className="font-bold">{formatPubkey(msg.pubkey, true)}</span>
+            <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+              <span className="font-semibold text-[13px]" style={{ color: 'var(--primary-color)' }} title={formatPubkey(msg.pubkey, false)}>{formatDisplayName(msg.pubkey)}</span>
+              {msg.channelName && (
+                <span className="text-xs px-1.5 py-0.5 rounded bg-[var(--sidebar-hover)] text-[var(--text-muted)]"># {msg.channelName}</span>
+              )}
               {msg.isPrivate && (
-                <span className="text-purple-300 text-sm">[Privado]</span>
+                <span className="text-xs opacity-75">[Privado]</span>
               )}
             </div>
-            <div className="break-words">
+            <div className="break-words text-[15px] leading-snug">
               {renderMessageContent(msg.content)}
             </div>
-            <div className="mt-2 flex items-center gap-2">
-              <button 
-                onClick={() => handleReply(msg)} 
-                className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
+            <div className="mt-1.5 flex items-center gap-1 flex-wrap">
+              <button
+                type="button"
+                onClick={() => handleReply(msg)}
+                className="text-xs px-2 py-1 rounded opacity-80 hover:opacity-100 hover:bg-[var(--sidebar-hover)] transition-colors"
               >
                 Responder
               </button>
+              {selectedChannelId && !threadRoot && (
+                <button
+                  type="button"
+                  onClick={() => setThreadRoot(msg)}
+                  className="text-xs px-2 py-1 rounded opacity-80 hover:opacity-100 hover:bg-[var(--sidebar-hover)] transition-colors"
+                >
+                  Ver hilo
+                </button>
+              )}
               {msg.pubkey === publicKey && !selectedChannelId && (
-                <button 
-                  onClick={() => handleEditMessage(msg)} 
-                  className="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600"
+                <button
+                  type="button"
+                  onClick={() => handleEditMessage(msg)}
+                  className="text-xs px-2 py-1 rounded opacity-80 hover:opacity-100 hover:bg-[var(--sidebar-hover)] transition-colors"
                 >
                   Editar
                 </button>
@@ -471,7 +717,7 @@ const Chat: React.FC<ChatProps> = ({ privateKey, publicKey, pool, selectedContac
               <button
                 type="button"
                 onClick={() => toggleStarred(msg)}
-                className={`px-2 py-1 rounded text-sm ${isStarred(msg.id) ? 'bg-amber-500 text-black' : 'bg-gray-600 hover:bg-gray-500'}`}
+                className={`text-xs px-2 py-1 rounded transition-colors ${isStarred(msg.id) ? 'opacity-100' : 'opacity-60 hover:opacity-100 hover:bg-[var(--sidebar-hover)]'}`}
                 title={isStarred(msg.id) ? 'Quitar de destacados' : 'Destacar'}
               >
                 ⭐
@@ -486,26 +732,54 @@ const Chat: React.FC<ChatProps> = ({ privateKey, publicKey, pool, selectedContac
           </div>
         ))}
         <div ref={messagesEndRef} />
+        </div>
+        {threadRoot && selectedChannelId && (
+          <div className="w-80 shrink-0 border-l border-[var(--border-subtle)] flex flex-col bg-[var(--sidebar-bg)] overflow-hidden">
+            <div className="shrink-0 px-3 py-2 border-b border-[var(--border-subtle)] flex items-center justify-between">
+              <span className="text-sm font-medium text-[var(--text-color)]">Hilo</span>
+              <button
+                type="button"
+                onClick={() => { setThreadRoot(null); setThreadReplies([]); }}
+                className="p-1 rounded hover:bg-[var(--sidebar-hover)] text-[var(--text-muted)]"
+                aria-label="Cerrar hilo"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="flex-1 min-h-0 overflow-y-auto p-2 space-y-2">
+              <div className={`message ${threadRoot.pubkey === publicKey ? 'user self-end' : 'self-start'}`}>
+                <div className="font-semibold text-[13px]" style={{ color: 'var(--primary-color)' }} title={formatPubkey(threadRoot.pubkey, false)}>{formatDisplayName(threadRoot.pubkey)}</div>
+                <div className="break-words text-[14px]">{renderMessageContent(threadRoot.content)}</div>
+              </div>
+              {threadReplies.map((msg) => (
+                <div key={msg.id} className={`message ${msg.pubkey === publicKey ? 'user self-end' : 'self-start'}`}>
+                  <div className="font-semibold text-[13px]" style={{ color: 'var(--primary-color)' }} title={formatPubkey(msg.pubkey, false)}>{formatDisplayName(msg.pubkey)}</div>
+                  <div className="break-words text-[14px]">{renderMessageContent(msg.content)}</div>
+                  <button type="button" onClick={() => handleReply(msg)} className="text-xs mt-1 opacity-80 hover:opacity-100">Responder</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
-      <div className="fixed bottom-0 left-0 right-0 bg-gray-800 p-2">
+      <div className="shrink-0 input-bar-bg px-4 py-3 border-t border-[var(--border-subtle)]">
         <TypingIndicator pool={pool} publicKey={publicKey} />
         {replyingTo && (
-          <div className="bg-gray-700 p-2 mb-2 rounded flex justify-between items-center">
-            <div>
-              <span className="text-sm text-gray-400">
-                Respondiendo a {formatPubkey(replyingTo.pubkey, true)}
-              </span>
-              <div className="text-sm truncate">{replyingTo.content}</div>
+          <div className="mb-2 py-2 px-3 rounded text-sm flex justify-between items-center bg-[var(--input-bg)] text-[var(--text-muted)]">
+            <div className="min-w-0">
+              <span className="text-xs">Respondiendo a {formatDisplayName(replyingTo.pubkey)}</span>
+              <div className="truncate text-[13px]">{replyingTo.content}</div>
             </div>
-            <button 
+            <button
+              type="button"
               onClick={() => setReplyingTo(null)}
-              className="text-red-400 hover:text-red-300"
+              className="shrink-0 ml-2 p-1 rounded hover:bg-[var(--sidebar-hover)] text-[var(--text-color)]"
             >
               ✕
             </button>
           </div>
         )}
-        <div className="flex">
+        <div className="flex gap-2 items-center">
           <input
             type="text"
             value={input}
@@ -513,12 +787,13 @@ const Chat: React.FC<ChatProps> = ({ privateKey, publicKey, pool, selectedContac
               setInput(e.target.value);
               if (e.target.value.trim()) scheduleTyping();
             }}
-            onKeyPress={(e) => {
-              if (e.key === 'Enter') {
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
                 sendMessage();
               }
             }}
-            className="flex-grow bg-gray-700 text-green-500 p-2 rounded-l focus:outline-none"
+            className="flex-grow min-w-0 rounded-lg py-2.5 px-4 text-[15px]"
             placeholder={
               replyingTo
                 ? replyingTo.isPrivate
@@ -526,16 +801,19 @@ const Chat: React.FC<ChatProps> = ({ privateKey, publicKey, pool, selectedContac
                   : "Responder..."
                 : editingMessage
                   ? "Editando mensaje..."
-                  : selectedChannelId
-                    ? `Mensaje en #${channelName || 'canal'}...`
-                    : selectedContact
-                      ? "Mensaje privado..."
-                      : "Escribe aquí o @npub... para DM..."
+                  : unifiedFeed
+                    ? "Publicar en el feed..."
+                    : selectedChannelId
+                      ? `Mensaje en #${channelName || 'canal'}...`
+                      : selectedContact
+                        ? "Mensaje privado..."
+                        : "Escribe aquí o @usuario / @npub para DM..."
             }
           />
-          <button 
-            onClick={sendMessage} 
-            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-500"
+          <button
+            type="button"
+            onClick={sendMessage}
+            className="btn-primary shrink-0 px-5 py-2.5 rounded-lg font-medium"
           >
             {editingMessage ? "Actualizar" : "Enviar"}
           </button>
@@ -599,13 +877,16 @@ const MessageReactions: React.FC<ReactionProps> = ({ messageId, pool, publicKey,
   };
 
   return (
-    <div className="flex gap-2">
+    <div className="flex gap-1">
       {Object.entries(reactions).map(([emoji, users]) => (
         <button
           key={emoji}
+          type="button"
           onClick={() => sendReaction(emoji)}
-          className={`px-2 py-1 rounded text-sm ${
-            users.has(publicKey) ? 'bg-green-600' : 'bg-gray-600 hover:bg-gray-500'
+          className={`px-2 py-0.5 rounded text-xs transition-colors ${
+            users.has(publicKey)
+              ? 'bg-[var(--primary-color)] text-white'
+              : 'bg-[var(--sidebar-active)] text-[var(--text-muted)] hover:bg-[var(--sidebar-hover)]'
           }`}
         >
           {emoji} {users.size > 0 && users.size}
