@@ -1,27 +1,55 @@
 import React, { useEffect, useState } from 'react';
 import { nip19 } from 'nostr-tools';
 
-interface StarredMessage {
+export interface StarredMessage {
   id: string;
   content: string;
   pubkey: string;
   created_at: number;
 }
 
-const StarredMessages: React.FC = () => {
-  const [starredMessages, setStarredMessages] = useState<StarredMessage[]>([]);
+const STORAGE_KEY = 'starred_messages';
+
+export function loadStarredFromStorage(): StarredMessage[] {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveStarredToStorage(list: StarredMessage[]) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+}
+
+interface StarredMessagesProps {
+  messages?: StarredMessage[];
+  onRemove?: (id: string) => void;
+  onMessagesChange?: (list: StarredMessage[]) => void;
+}
+
+const StarredMessages: React.FC<StarredMessagesProps> = ({ messages: controlledMessages, onRemove, onMessagesChange }) => {
+  const [internalMessages, setInternalMessages] = useState<StarredMessage[]>([]);
 
   useEffect(() => {
-    const stored = localStorage.getItem('starred_messages');
-    if (stored) {
-      setStarredMessages(JSON.parse(stored));
+    if (controlledMessages === undefined) {
+      setInternalMessages(loadStarredFromStorage());
     }
-  }, []);
+  }, [controlledMessages]);
+
+  const starredMessages = controlledMessages ?? internalMessages;
 
   const removeFromStarred = (id: string) => {
     const updated = starredMessages.filter(msg => msg.id !== id);
-    setStarredMessages(updated);
-    localStorage.setItem('starred_messages', JSON.stringify(updated));
+    if (onRemove) {
+      onRemove(id);
+    } else if (onMessagesChange) {
+      onMessagesChange(updated);
+    } else {
+      setInternalMessages(updated);
+      saveStarredToStorage(updated);
+    }
   };
 
   return (
