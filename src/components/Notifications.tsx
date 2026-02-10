@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Bell, BellOff } from 'lucide-react';
 
 export type ShowNotificationFn = (title: string, body: string, data?: { messageId?: string; type?: string }) => void;
 
@@ -11,6 +12,16 @@ interface NotificationProps {
 
 const Notifications: React.FC<NotificationProps> = ({ onNotificationChange, onRegisterShow, publicKey: _publicKey }) => {
   const [permission, setPermission] = useState<NotificationPermission>('default');
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const showNotification: ShowNotificationFn = (title, body, data) => {
     if (permission === 'granted' && document.hidden) {
@@ -45,11 +56,10 @@ const Notifications: React.FC<NotificationProps> = ({ onNotificationChange, onRe
       const result = await Notification.requestPermission();
       setPermission(result);
       onNotificationChange(result === 'granted');
-      
       if (result === 'granted') {
         showNotification(
           'Notificaciones activadas',
-          'Recibirás notificaciones de mensajes privados, menciones y cambios en los relays.'
+          'Recibirás notificaciones de mensajes privados.'
         );
       }
     } catch (error) {
@@ -57,28 +67,73 @@ const Notifications: React.FC<NotificationProps> = ({ onNotificationChange, onRe
     }
   };
 
+  const handleBellClick = () => {
+    setOpen((v) => !v);
+  };
+
   if (permission === 'denied') {
     return (
-      <button
-        className="bg-red-600 text-white px-4 py-2 rounded opacity-50 cursor-not-allowed"
-        title="Las notificaciones están bloqueadas. Habilítalas en la configuración del navegador."
-      >
-        🔔 Bloqueadas
-      </button>
+      <div className="relative" ref={ref}>
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="p-2 rounded-md opacity-80 bg-[var(--sidebar-active)] text-[var(--text-muted)] hover:bg-[var(--sidebar-hover)]"
+          title="Notificaciones bloqueadas"
+        >
+          <BellOff size={18} />
+        </button>
+        {open && (
+          <div className="absolute right-0 top-full mt-1 z-30 w-64 p-3 rounded-lg shadow-lg bg-[var(--sidebar-bg)] border border-[var(--border-subtle)]">
+            <p className="text-sm font-medium text-[var(--text-color)]">Notificaciones bloqueadas</p>
+            <p className="text-xs text-[var(--text-muted)] mt-1">
+              Habilítalas en la configuración del navegador para este sitio (candado o icono de sitio en la barra de direcciones).
+            </p>
+            <button type="button" onClick={() => setOpen(false)} className="mt-2 text-xs text-[var(--primary-color)] hover:underline">Cerrar</button>
+          </div>
+        )}
+      </div>
     );
   }
 
   return (
-    <button
-      onClick={requestNotificationPermission}
-      className={`px-4 py-2 rounded flex items-center gap-2 ${
-        permission === 'granted'
-          ? 'bg-green-500 hover:bg-green-600'
-          : 'bg-blue-500 hover:bg-blue-600'
-      } text-white`}
-    >
-      🔔 {permission === 'granted' ? 'Activadas' : 'Activar Notificaciones'}
-    </button>
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={handleBellClick}
+        className={`p-2 rounded-md transition-colors ${
+          permission === 'granted'
+            ? 'bg-[var(--primary-color)] text-white'
+            : 'bg-[var(--sidebar-hover)] text-[var(--text-color)] hover:bg-[var(--sidebar-active)]'
+        }`}
+        title={permission === 'granted' ? 'Notificaciones activadas' : 'Activar notificaciones'}
+      >
+        <Bell size={18} />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 z-30 w-64 p-3 rounded-lg shadow-lg bg-[var(--sidebar-bg)] border border-[var(--border-subtle)]">
+          <p className="text-sm font-medium text-[var(--text-color)]">
+            {permission === 'granted' ? 'Notificaciones activadas' : 'Notificaciones'}
+          </p>
+          <p className="text-xs text-[var(--text-muted)] mt-1">
+            {permission === 'granted'
+              ? 'Recibirás notificaciones del sistema cuando lleguen mensajes privados y la pestaña esté en segundo plano.'
+              : 'Al hacer clic se pedirá permiso al navegador para mostrarte notificaciones de mensajes privados.'}
+          </p>
+          {permission === 'default' && (
+            <button
+              type="button"
+              onClick={() => requestNotificationPermission()}
+              className="mt-2 px-3 py-1.5 rounded text-xs font-medium bg-[var(--primary-color)] text-white hover:opacity-90"
+            >
+              Activar notificaciones
+            </button>
+          )}
+          {permission === 'granted' && (
+            <button type="button" onClick={() => setOpen(false)} className="mt-2 text-xs text-[var(--primary-color)] hover:underline">Cerrar</button>
+          )}
+        </div>
+      )}
+    </div>
   );
 };
 

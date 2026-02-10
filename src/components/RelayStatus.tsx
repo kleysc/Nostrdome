@@ -14,8 +14,7 @@ interface RelayState {
 
 const RelayStatus: React.FC<RelayStatusProps> = ({ pool }) => {
   const [relayStates, setRelayStates] = useState<RelayState[]>([]);
-  const [isVisible, setIsVisible] = useState(true);
-  const [hasChanges, setHasChanges] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     const checkRelayStatus = async () => {
@@ -23,94 +22,82 @@ const RelayStatus: React.FC<RelayStatusProps> = ({ pool }) => {
         relayUrls.map(async (url) => {
           try {
             const relay = await pool.ensureRelay(url);
-            return {
-              url,
-              status: relay.status === 1,
-              lastChecked: Date.now()
-            };
-          } catch (error) {
-            return {
-              url,
-              status: false,
-              lastChecked: Date.now()
-            };
+            return { url, status: relay.status === 1, lastChecked: Date.now() };
+          } catch {
+            return { url, status: false, lastChecked: Date.now() };
           }
         })
       );
-
-      setRelayStates(prevStates => {
-        // Detectar cambios en el estado de los relays
-        const hasStateChanges = newStates.some(newState => {
-          const prevState = prevStates.find(ps => ps.url === newState.url);
-          return prevState && prevState.status !== newState.status;
-        });
-
-        if (hasStateChanges) {
-          setHasChanges(true);
-          setIsVisible(true);
-        }
-
-        return newStates;
-      });
+      setRelayStates(newStates);
     };
 
-    // Verificación inicial
     checkRelayStatus();
-
-    // Verificar cada 30 segundos
     const interval = setInterval(checkRelayStatus, 30000);
-    
     return () => clearInterval(interval);
   }, [pool]);
 
-  const handleClose = () => {
-    setIsVisible(false);
-    setHasChanges(false);
-  };
-
-  if (!isVisible && !hasChanges) {
-    return (
-      <button
-        onClick={() => setIsVisible(true)}
-        className="fixed bottom-4 right-4 bg-gray-700 p-2 rounded-full hover:bg-gray-600"
-        title="Show Relay Status"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M2 12C2 6.48 6.48 2 12 2s10 4.48 10 10-4.48 10-10 10S2 17.52 2 12zm10-1h2v2h-2v-2zm0-6h2v4h-2V5z"/>
-        </svg>
-      </button>
-    );
-  }
+  const connected = relayStates.filter((r) => r.status).length;
+  const total = relayStates.length;
+  const allConnected = connected === total && total > 0;
 
   return (
-    <div className="bg-gray-800 p-3 rounded-lg shadow-lg max-w-[200px] animate-fade-in">
-      <div className="flex justify-between items-center mb-2">
-        <h3 className="text-xs font-bold">Relay Status</h3>
-        <button
-          onClick={handleClose}
-          className="text-gray-400 hover:text-gray-200 text-sm"
-        >
-          ✕
-        </button>
-      </div>
-      <div className="space-y-1">
-        {relayStates.map((relay) => (
-          <div key={relay.url} className="flex items-center gap-2 text-xs">
-            <div 
-              className={`w-1.5 h-1.5 rounded-full ${
-                relay.status ? 'bg-green-500' : 'bg-red-500'
-              } ${
-                hasChanges && 'animate-pulse'
-              }`}
-            />
-            <span className="truncate" title={relay.url}>
-              {new URL(relay.url).hostname}
-            </span>
+    <div className="shrink-0 border-t border-[var(--border-subtle)] bg-[var(--header-bg)] relative">
+      {/* Panel expandido (hacia arriba) */}
+      {expanded && (
+        <div className="absolute bottom-full left-0 right-0 z-30 p-3 bg-[var(--sidebar-bg)] border border-[var(--border-subtle)] border-b-0 rounded-t-lg shadow-lg">
+          <h4 className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">
+            Relays conectados
+          </h4>
+          <div className="space-y-1.5">
+            {relayStates.map((relay) => (
+              <div key={relay.url} className="flex items-center gap-2 text-xs">
+                <span
+                  className={`w-2 h-2 rounded-full shrink-0 ${
+                    relay.status ? 'bg-green-500' : 'bg-red-500'
+                  }`}
+                />
+                <span className="truncate text-[var(--text-color)]" title={relay.url}>
+                  {new URL(relay.url).hostname}
+                </span>
+                <span className="ml-auto text-[10px] text-[var(--text-muted)]">
+                  {relay.status ? 'OK' : 'Off'}
+                </span>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </div>
+      )}
+
+      {/* Barra compacta */}
+      <button
+        type="button"
+        onClick={() => setExpanded((e) => !e)}
+        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[var(--text-muted)] hover:text-[var(--text-color)] hover:bg-[var(--sidebar-hover)] transition-colors"
+        title={`${connected}/${total} relays conectados`}
+      >
+        <span
+          className={`w-2 h-2 rounded-full shrink-0 ${
+            allConnected ? 'bg-green-500' : connected > 0 ? 'bg-yellow-500' : 'bg-red-500'
+          }`}
+        />
+        <span>
+          {total === 0
+            ? 'Sin relays'
+            : allConnected
+              ? `${connected} relays conectados`
+              : `${connected}/${total} relays`}
+        </span>
+        <svg
+          className={`w-3 h-3 ml-auto transition-transform ${expanded ? 'rotate-180' : ''}`}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+        </svg>
+      </button>
     </div>
   );
 };
 
-export default RelayStatus; 
+export default RelayStatus;

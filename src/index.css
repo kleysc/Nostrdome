@@ -2,32 +2,46 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Theme: matrix (default) */
+/* Layout (Discord/Slack style) */
+:root {
+  --sidebar-bg: #2f3136;
+  --sidebar-hover: #36393f;
+  --sidebar-active: #404249;
+  --chat-bg: #36393f;
+  --input-bg: #40444b;
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --radius: 8px;
+  --radius-lg: 12px;
+}
+
+/* Theme: default (Discord-like dark) */
 :root,
 [data-theme="matrix"] {
-  --primary-color: #00875A;
-  --secondary-color: #34d399;
-  --background-color: #0a0a0a;
-  --text-color: #22c55e;
-  --message-bg: #f3f4f6;
-  --message-own-bg: #166534;
+  --primary-color: #5865F2;
+  --primary-hover: #4752c4;
+  --secondary-color: #7289da;
+  --background-color: #36393f;
+  --text-color: #dcddde;
+  --text-muted: #b9bbbe;
+  --message-own-bg: #5865F2;
   --message-own-text: #ffffff;
-  --message-other-bg: #1f2937;
-  --message-other-text: #9ca3af;
-  --header-bg: #14532d;
-  --btn-logout-bg: #dc2626;
-  --btn-logout-hover: #b91c1c;
+  --message-other-bg: #40444b;
+  --message-other-text: #dcddde;
+  --header-bg: #202225;
+  --btn-logout-bg: #da373c;
+  --btn-logout-hover: #a12828;
 }
 
 [data-theme="cyberpunk"] {
   --primary-color: #ec4899;
-  --secondary-color: #06b6d4;
-  --background-color: #0f0f23;
-  --text-color: #06b6d4;
+  --primary-hover: #db2777;
+  --background-color: #1e1b4b;
+  --text-color: #e9d5ff;
+  --text-muted: #a5b4fc;
   --message-own-bg: #7c3aed;
   --message-own-text: #fff;
-  --message-other-bg: #1e1b4b;
-  --message-other-text: #a5b4fc;
+  --message-other-bg: #312e81;
+  --message-other-text: #c4b5fd;
   --header-bg: #1e1b4b;
   --btn-logout-bg: #ec4899;
   --btn-logout-hover: #db2777;
@@ -35,37 +49,45 @@
 
 [data-theme="midnight"] {
   --primary-color: #3b82f6;
-  --secondary-color: #60a5fa;
-  --background-color: #0c1929;
-  --text-color: #93c5fd;
-  --message-own-bg: #1e3a5f;
+  --primary-hover: #2563eb;
+  --background-color: #1e293b;
+  --text-color: #e2e8f0;
+  --text-muted: #94a3b8;
+  --message-own-bg: #2563eb;
   --message-own-text: #fff;
-  --message-other-bg: #1e293b;
-  --message-other-text: #94a3b8;
+  --message-other-bg: #334155;
+  --message-other-text: #e2e8f0;
   --header-bg: #0f172a;
   --btn-logout-bg: #dc2626;
   --btn-logout-hover: #b91c1c;
 }
 
 [data-theme="light"] {
-  --primary-color: #059669;
-  --secondary-color: #10b981;
+  --sidebar-bg: #f2f3f5;
+  --sidebar-hover: #e3e5e8;
+  --sidebar-active: #d4d7dc;
+  --chat-bg: #ffffff;
+  --input-bg: #ebedef;
+  --primary-color: #5865F2;
+  --primary-hover: #4752c4;
   --background-color: #ffffff;
-  --text-color: #1e293b;
-  --message-own-bg: #059669;
+  --text-color: #2e3338;
+  --text-muted: #747f8d;
+  --message-own-bg: #5865F2;
   --message-own-text: #fff;
-  --message-other-bg: #e2e8f0;
-  --message-other-text: #1e293b;
-  --header-bg: #047857;
-  --btn-logout-bg: #dc2626;
-  --btn-logout-hover: #b91c1c;
+  --message-other-bg: #f2f3f5;
+  --message-other-text: #2e3338;
+  --header-bg: #f2f3f5;
+  --btn-logout-bg: #da373c;
+  --btn-logout-hover: #a12828;
 }
 
 body {
-    background-color: var(--background-color);
-    color: var(--text-color);
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    line-height: 1.5;
+  background-color: var(--background-color);
+  color: var(--text-color);
+  font-family: 'Poppins', 'Inter', system-ui, -apple-system, sans-serif;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
 }
 
 .app-theme {
@@ -87,66 +109,106 @@ body {
   background-color: var(--btn-logout-hover);
 }
 
-/* Estilos para mensajes */
-.message {
-    background-color: var(--message-other-bg);
-    color: var(--message-other-text);
-    border-radius: 16px;
-    padding: 12px 16px;
-    margin: 8px 0;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    max-width: 80%;
-    transition: transform 0.2s ease;
+/* Header: identidad y controles */
+.header-identity-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px 4px 4px;
+  border-radius: 9999px;
+  background: var(--sidebar-hover);
+  color: var(--text-color);
+  border: 1px solid var(--border-subtle);
+  font-size: 13px;
+  font-weight: 500;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+.header-identity-pill:hover {
+  background: var(--sidebar-active);
+  border-color: var(--primary-color);
+  color: var(--text-color);
+}
+.header-identity-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--primary-color);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.header-identity-avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.header-controls-divider {
+  width: 1px;
+  height: 24px;
+  background: var(--border-subtle);
+  flex-shrink: 0;
 }
 
-.message:hover {
-    transform: translateY(-1px);
+/* Mensajes estilo Discord/Slack */
+.message {
+  background-color: var(--message-other-bg);
+  color: var(--message-other-text);
+  border-radius: var(--radius-lg);
+  padding: 10px 14px;
+  margin: 2px 0;
+  max-width: 75%;
+  border: none;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .message.user {
-    background-color: var(--message-own-bg);
-    color: var(--message-own-text);
-    margin-left: auto;
-    margin-right: 0;
-    border: 1px solid var(--primary-color);
+  background-color: var(--message-own-bg);
+  color: var(--message-own-text);
+  margin-left: auto;
+  margin-right: 0;
 }
 
 .message.user strong {
-    color: var(--message-own-text);
+  color: inherit;
 }
 
-button {
-    background-color: var(--primary-color);
-    color: white;
-    padding: 10px 16px;
-    border-radius: 12px;
-    font-weight: 500;
-    transition: all 0.2s ease;
-    border: 2px solid transparent;
+/* Botones: solo primarios usan --primary-color; el resto por componente */
+.btn-primary {
+  background-color: var(--primary-color);
+  color: white;
+  padding: 8px 16px;
+  border-radius: var(--radius);
+  font-weight: 500;
+  transition: background-color 0.15s ease;
+  border: none;
 }
 
-button:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
-}
-
-button:active {
-    transform: translateY(0);
+.btn-primary:hover {
+  background-color: var(--primary-hover);
 }
 
 input {
-    background-color: white;
-    border: 2px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 10px 16px;
-    transition: all 0.2s ease;
-    width: 100%;
+  background-color: var(--input-bg);
+  color: var(--text-color);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  transition: border-color 0.15s ease;
+  width: 100%;
+}
+
+input::placeholder {
+  color: var(--text-muted);
 }
 
 input:focus {
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
-    outline: none;
+  border-color: var(--primary-color);
+  outline: none;
 }
 
 /* Estilos para el header */
@@ -188,15 +250,38 @@ input:focus {
     animation: fadeIn 0.3s ease forwards;
 }
 
-.bg-gray-800,
-.bg-gray-900,
-.bg-black {
-    background-color: var(--background-color) !important;
+/* Utilidades para sidebar y chat */
+.sidebar-bg {
+  background-color: var(--sidebar-bg);
 }
 
-.text-gray-300,
-.text-gray-400 {
-    color: var(--text-color) !important;
+.chat-bg {
+  background-color: var(--chat-bg);
+}
+
+.input-bar-bg {
+  background-color: var(--sidebar-bg);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.sidebar-item {
+  transition: background-color 0.1s ease;
+}
+.sidebar-item:hover {
+  background-color: var(--sidebar-hover);
+}
+.sidebar-item.active {
+  background-color: var(--sidebar-active);
+}
+
+.sidebar-heading {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  margin-bottom: 4px;
+  padding: 0 8px;
 }
 
 button.edit {
