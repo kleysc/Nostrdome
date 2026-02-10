@@ -1,19 +1,18 @@
 import React, { useState, useEffect } from 'react';
 
+export type ShowNotificationFn = (title: string, body: string, data?: { messageId?: string; type?: string }) => void;
+
 interface NotificationProps {
   onNotificationChange: (enabled: boolean) => void;
+  /** Se llama cuando hay permiso y la app puede usar notificaciones (p. ej. al recibir mensajes). */
+  onRegisterShow?: (show: ShowNotificationFn) => void;
   publicKey: string;
 }
 
-const Notifications: React.FC<NotificationProps> = ({ onNotificationChange, publicKey }) => {
+const Notifications: React.FC<NotificationProps> = ({ onNotificationChange, onRegisterShow, publicKey: _publicKey }) => {
   const [permission, setPermission] = useState<NotificationPermission>('default');
 
-  useEffect(() => {
-    setPermission(Notification.permission);
-    onNotificationChange(Notification.permission === 'granted');
-  }, [onNotificationChange]);
-
-  const showNotification = (title: string, body: string, data?: any) => {
+  const showNotification: ShowNotificationFn = (title, body, data) => {
     if (permission === 'granted' && document.hidden) {
       const notification = new Notification(title, {
         body,
@@ -31,6 +30,15 @@ const Notifications: React.FC<NotificationProps> = ({ onNotificationChange, publ
       };
     }
   };
+
+  useEffect(() => {
+    setPermission(Notification.permission);
+    onNotificationChange(Notification.permission === 'granted');
+  }, [onNotificationChange]);
+
+  useEffect(() => {
+    if (permission === 'granted' && onRegisterShow) onRegisterShow(showNotification);
+  }, [permission, onRegisterShow]);
 
   const requestNotificationPermission = async () => {
     try {

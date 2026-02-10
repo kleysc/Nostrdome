@@ -2,16 +2,63 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
+/* Theme: matrix (default) */
+:root,
+[data-theme="matrix"] {
   --primary-color: #00875A;
   --secondary-color: #34d399;
+  --background-color: #0a0a0a;
+  --text-color: #22c55e;
+  --message-bg: #f3f4f6;
+  --message-own-bg: #166534;
+  --message-own-text: #ffffff;
+  --message-other-bg: #1f2937;
+  --message-other-text: #9ca3af;
+  --header-bg: #14532d;
+  --btn-logout-bg: #dc2626;
+  --btn-logout-hover: #b91c1c;
+}
+
+[data-theme="cyberpunk"] {
+  --primary-color: #ec4899;
+  --secondary-color: #06b6d4;
+  --background-color: #0f0f23;
+  --text-color: #06b6d4;
+  --message-own-bg: #7c3aed;
+  --message-own-text: #fff;
+  --message-other-bg: #1e1b4b;
+  --message-other-text: #a5b4fc;
+  --header-bg: #1e1b4b;
+  --btn-logout-bg: #ec4899;
+  --btn-logout-hover: #db2777;
+}
+
+[data-theme="midnight"] {
+  --primary-color: #3b82f6;
+  --secondary-color: #60a5fa;
+  --background-color: #0c1929;
+  --text-color: #93c5fd;
+  --message-own-bg: #1e3a5f;
+  --message-own-text: #fff;
+  --message-other-bg: #1e293b;
+  --message-other-text: #94a3b8;
+  --header-bg: #0f172a;
+  --btn-logout-bg: #dc2626;
+  --btn-logout-hover: #b91c1c;
+}
+
+[data-theme="light"] {
+  --primary-color: #059669;
+  --secondary-color: #10b981;
   --background-color: #ffffff;
   --text-color: #1e293b;
-  --message-bg: #f3f4f6;
-  --message-own-bg: #4CAF50;
-  --message-own-text: #ffffff;
+  --message-own-bg: #059669;
+  --message-own-text: #fff;
   --message-other-bg: #e2e8f0;
   --message-other-text: #1e293b;
+  --header-bg: #047857;
+  --btn-logout-bg: #dc2626;
+  --btn-logout-hover: #b91c1c;
 }
 
 body {
@@ -19,6 +66,25 @@ body {
     color: var(--text-color);
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     line-height: 1.5;
+}
+
+.app-theme {
+  background-color: var(--background-color);
+  color: var(--text-color);
+}
+
+.header-theme {
+  background-color: var(--header-bg);
+  color: var(--text-color);
+}
+
+.btn-logout {
+  background-color: var(--btn-logout-bg);
+  color: white;
+}
+
+.btn-logout:hover {
+  background-color: var(--btn-logout-hover);
 }
 
 /* Estilos para mensajes */
