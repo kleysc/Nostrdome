@@ -640,25 +640,25 @@ const Chat: React.FC<ChatProps> = ({ privateKey, publicKey, pool, selectedContac
         );
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-4 py-2 border-b border-[var(--border-subtle)] flex-wrap gap-2 bg-[var(--chat-bg)]">
+    <div className="chat-shell flex flex-col h-full">
+      <div className="chat-toolbar flex items-center justify-between px-4 py-2.5 border-b border-[var(--border-subtle)] flex-wrap gap-2">
         {unifiedFeed && (
-          <span className="text-[15px] font-semibold text-[var(--text-color)]">📋 Todo</span>
+          <span className="chat-context-pill text-[15px] font-semibold text-[var(--text-color)]">Todo</span>
         )}
         {!unifiedFeed && selectedChannelId && channelName && (
-          <span className="text-[15px] font-semibold text-[var(--text-color)]"># {channelName}</span>
+          <span className="chat-context-pill text-[15px] font-semibold text-[var(--text-color)]"># {channelName}</span>
         )}
         <button
           type="button"
           onClick={() => setShowStarredPanel((v) => !v)}
-          className="text-sm text-[var(--text-muted)] hover:text-[var(--text-color)] flex items-center gap-1 px-2 py-1 rounded hover:bg-[var(--sidebar-hover)]"
+          className="chat-toolbar-btn text-sm text-[var(--text-muted)] hover:text-[var(--text-color)] flex items-center gap-1 px-2.5 py-1.5 rounded-lg"
         >
-          ⭐ Destacados {starredMessages.length > 0 && `(${starredMessages.length})`}
+          Destacados {starredMessages.length > 0 && `(${starredMessages.length})`}
         </button>
         <MessageSearch onSearch={setSearchQuery} />
       </div>
       {showStarredPanel && (
-        <div className="p-4 border-b border-[var(--border-subtle)] max-h-48 overflow-y-auto bg-[var(--sidebar-bg)]">
+        <div className="chat-starred-panel p-4 border-b border-[var(--border-subtle)] max-h-52 overflow-y-auto">
           <StarredMessages
             messages={starredMessages}
             onMessagesChange={(list) => {
@@ -669,103 +669,103 @@ const Chat: React.FC<ChatProps> = ({ privateKey, publicKey, pool, selectedContac
         </div>
       )}
       <div className="flex flex-1 min-h-0">
-        <div className={`flex-grow overflow-y-auto space-y-1 px-4 py-3 chat-bg ${threadRoot ? 'mr-80 shrink-0' : ''}`}>
-        {displayMessages.map((msg) => (
-          <div
-            key={msg.id}
-            id={msg.id}
-            className={`message ${msg.pubkey === publicKey ? 'user self-end' : 'self-start'}`}
-          >
-            <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-              <span className="font-semibold text-[13px]" style={{ color: 'var(--primary-color)' }} title={formatPubkey(msg.pubkey, false)}>{formatDisplayName(msg.pubkey)}</span>
-              {msg.channelName && (
-                <span className="text-xs px-1.5 py-0.5 rounded bg-[var(--sidebar-hover)] text-[var(--text-muted)]"># {msg.channelName}</span>
-              )}
-              {msg.isPrivate && (
-                <span className="text-xs opacity-75">[Privado]</span>
-              )}
-            </div>
-            <div className="break-words text-[15px] leading-snug">
-              {renderMessageContent(msg.content)}
-            </div>
-            <div className="mt-1.5 flex items-center gap-1 flex-wrap">
-              <button
-                type="button"
-                onClick={() => handleReply(msg)}
-                className="text-xs px-2 py-1 rounded opacity-80 hover:opacity-100 hover:bg-[var(--sidebar-hover)] transition-colors"
-              >
-                Responder
-              </button>
-              {selectedChannelId && !threadRoot && (
+        <div className={`chat-stream flex-grow overflow-y-auto space-y-2 px-4 py-4 ${threadRoot ? 'mr-80 shrink-0' : ''}`}>
+          {displayMessages.map((msg) => (
+            <div
+              key={msg.id}
+              id={msg.id}
+              className={`message message-card ${msg.pubkey === publicKey ? 'user self-end' : 'self-start'}`}
+            >
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                <span className="message-author font-semibold text-[13px]" title={formatPubkey(msg.pubkey, false)}>{formatDisplayName(msg.pubkey)}</span>
+                {msg.channelName && (
+                  <span className="message-meta-pill text-xs px-1.5 py-0.5 rounded"># {msg.channelName}</span>
+                )}
+                {msg.isPrivate && (
+                  <span className="message-private-tag text-xs">Privado</span>
+                )}
+              </div>
+              <div className="message-body break-words text-[15px] leading-snug">
+                {renderMessageContent(msg.content)}
+              </div>
+              <div className="message-actions mt-2 flex items-center gap-1 flex-wrap">
                 <button
                   type="button"
-                  onClick={() => setThreadRoot(msg)}
-                  className="text-xs px-2 py-1 rounded opacity-80 hover:opacity-100 hover:bg-[var(--sidebar-hover)] transition-colors"
+                  onClick={() => handleReply(msg)}
+                  className="message-action-btn text-xs px-2.5 py-1 rounded-md transition-colors"
                 >
-                  Ver hilo
+                  Responder
                 </button>
-              )}
-              {msg.pubkey === publicKey && !selectedChannelId && (
+                {selectedChannelId && !threadRoot && (
+                  <button
+                    type="button"
+                    onClick={() => setThreadRoot(msg)}
+                    className="message-action-btn text-xs px-2.5 py-1 rounded-md transition-colors"
+                  >
+                    Ver hilo
+                  </button>
+                )}
+                {msg.pubkey === publicKey && !selectedChannelId && (
+                  <button
+                    type="button"
+                    onClick={() => handleEditMessage(msg)}
+                    className="message-action-btn text-xs px-2.5 py-1 rounded-md transition-colors"
+                  >
+                    Editar
+                  </button>
+                )}
                 <button
                   type="button"
-                  onClick={() => handleEditMessage(msg)}
-                  className="text-xs px-2 py-1 rounded opacity-80 hover:opacity-100 hover:bg-[var(--sidebar-hover)] transition-colors"
+                  onClick={() => toggleStarred(msg)}
+                  className={`message-action-btn text-xs px-2.5 py-1 rounded-md transition-colors ${isStarred(msg.id) ? 'message-action-btn-active' : ''}`}
+                  title={isStarred(msg.id) ? 'Quitar de destacados' : 'Destacar'}
                 >
-                  Editar
+                  Favorito
                 </button>
-              )}
-              <button
-                type="button"
-                onClick={() => toggleStarred(msg)}
-                className={`text-xs px-2 py-1 rounded transition-colors ${isStarred(msg.id) ? 'opacity-100' : 'opacity-60 hover:opacity-100 hover:bg-[var(--sidebar-hover)]'}`}
-                title={isStarred(msg.id) ? 'Quitar de destacados' : 'Destacar'}
-              >
-                ⭐
-              </button>
-              <MessageReactions 
-                messageId={msg.id}
-                pool={pool}
-                publicKey={publicKey}
-                privateKey={privateKey}
-              />
+                <MessageReactions
+                  messageId={msg.id}
+                  pool={pool}
+                  publicKey={publicKey}
+                  privateKey={privateKey}
+                />
+              </div>
             </div>
-          </div>
-        ))}
-        <div ref={messagesEndRef} />
+          ))}
+          <div ref={messagesEndRef} />
         </div>
         {threadRoot && selectedChannelId && (
-          <div className="w-80 shrink-0 border-l border-[var(--border-subtle)] flex flex-col bg-[var(--sidebar-bg)] overflow-hidden">
-            <div className="shrink-0 px-3 py-2 border-b border-[var(--border-subtle)] flex items-center justify-between">
+          <div className="thread-panel w-80 shrink-0 border-l border-[var(--border-subtle)] flex flex-col overflow-hidden">
+            <div className="thread-header shrink-0 px-3 py-2.5 border-b border-[var(--border-subtle)] flex items-center justify-between">
               <span className="text-sm font-medium text-[var(--text-color)]">Hilo</span>
               <button
                 type="button"
                 onClick={() => { setThreadRoot(null); setThreadReplies([]); }}
-                className="p-1 rounded hover:bg-[var(--sidebar-hover)] text-[var(--text-muted)]"
+                className="p-1.5 rounded-md hover:bg-[var(--sidebar-hover)] text-[var(--text-muted)]"
                 aria-label="Cerrar hilo"
               >
                 ✕
               </button>
             </div>
-            <div className="flex-1 min-h-0 overflow-y-auto p-2 space-y-2">
-              <div className={`message ${threadRoot.pubkey === publicKey ? 'user self-end' : 'self-start'}`}>
-                <div className="font-semibold text-[13px]" style={{ color: 'var(--primary-color)' }} title={formatPubkey(threadRoot.pubkey, false)}>{formatDisplayName(threadRoot.pubkey)}</div>
-                <div className="break-words text-[14px]">{renderMessageContent(threadRoot.content)}</div>
+            <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-2.5">
+              <div className={`message message-card ${threadRoot.pubkey === publicKey ? 'user self-end' : 'self-start'}`}>
+                <div className="message-author font-semibold text-[13px]" title={formatPubkey(threadRoot.pubkey, false)}>{formatDisplayName(threadRoot.pubkey)}</div>
+                <div className="message-body break-words text-[14px]">{renderMessageContent(threadRoot.content)}</div>
               </div>
               {threadReplies.map((msg) => (
-                <div key={msg.id} className={`message ${msg.pubkey === publicKey ? 'user self-end' : 'self-start'}`}>
-                  <div className="font-semibold text-[13px]" style={{ color: 'var(--primary-color)' }} title={formatPubkey(msg.pubkey, false)}>{formatDisplayName(msg.pubkey)}</div>
-                  <div className="break-words text-[14px]">{renderMessageContent(msg.content)}</div>
-                  <button type="button" onClick={() => handleReply(msg)} className="text-xs mt-1 opacity-80 hover:opacity-100">Responder</button>
+                <div key={msg.id} className={`message message-card ${msg.pubkey === publicKey ? 'user self-end' : 'self-start'}`}>
+                  <div className="message-author font-semibold text-[13px]" title={formatPubkey(msg.pubkey, false)}>{formatDisplayName(msg.pubkey)}</div>
+                  <div className="message-body break-words text-[14px]">{renderMessageContent(msg.content)}</div>
+                  <button type="button" onClick={() => handleReply(msg)} className="message-action-btn text-xs mt-2 px-2 py-1 rounded-md">Responder</button>
                 </div>
               ))}
             </div>
           </div>
         )}
       </div>
-      <div className="shrink-0 input-bar-bg px-4 py-3 border-t border-[var(--border-subtle)]">
+      <div className="composer-shell shrink-0 px-4 py-3 border-t border-[var(--border-subtle)]">
         <TypingIndicator pool={pool} publicKey={publicKey} />
         {replyingTo && (
-          <div className="mb-2 py-2 px-3 rounded text-sm flex justify-between items-center bg-[var(--input-bg)] text-[var(--text-muted)]">
+          <div className="composer-reply mb-2 py-2 px-3 rounded-lg text-sm flex justify-between items-center text-[var(--text-muted)]">
             <div className="min-w-0">
               <span className="text-xs">Respondiendo a {formatDisplayName(replyingTo.pubkey)}</span>
               <div className="truncate text-[13px]">{replyingTo.content}</div>
@@ -773,7 +773,7 @@ const Chat: React.FC<ChatProps> = ({ privateKey, publicKey, pool, selectedContac
             <button
               type="button"
               onClick={() => setReplyingTo(null)}
-              className="shrink-0 ml-2 p-1 rounded hover:bg-[var(--sidebar-hover)] text-[var(--text-color)]"
+              className="shrink-0 ml-2 p-1.5 rounded-md hover:bg-[var(--sidebar-hover)] text-[var(--text-color)]"
             >
               ✕
             </button>
@@ -793,7 +793,7 @@ const Chat: React.FC<ChatProps> = ({ privateKey, publicKey, pool, selectedContac
                 sendMessage();
               }
             }}
-            className="flex-grow min-w-0 rounded-lg py-2.5 px-4 text-[15px]"
+            className="composer-input flex-grow min-w-0 rounded-xl py-2.5 px-4 text-[15px]"
             placeholder={
               replyingTo
                 ? replyingTo.isPrivate
@@ -813,7 +813,7 @@ const Chat: React.FC<ChatProps> = ({ privateKey, publicKey, pool, selectedContac
           <button
             type="button"
             onClick={sendMessage}
-            className="btn-primary shrink-0 px-5 py-2.5 rounded-lg font-medium"
+            className="composer-send shrink-0 px-5 py-2.5 rounded-xl font-medium"
           >
             {editingMessage ? "Actualizar" : "Enviar"}
           </button>

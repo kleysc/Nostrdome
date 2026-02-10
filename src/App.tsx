@@ -280,10 +280,10 @@ function App() {
           onClose={() => setShowProfileEditor(false)}
         />
       )}
-      <main className="flex-1 min-h-0 flex p-4 pt-4 overflow-hidden">
+      <main className="flex-1 min-h-0 flex p-2 sm:p-4 overflow-hidden">
         {privateKey && publicKey && pool ? (
           <>
-            <div className="w-60 shrink-0 sidebar-bg flex flex-col min-h-0 overflow-hidden border-r border-[var(--border-subtle)] relative">
+            <div className="w-64 max-w-[42vw] shrink-0 sidebar-bg chat-sidebar-panel flex flex-col min-h-0 overflow-hidden relative">
               <ChannelList
                 channels={channels}
                 selectedChannelId={selectedChannelId}
@@ -314,7 +314,7 @@ function App() {
               />
               <RelayStatus pool={pool} />
             </div>
-            <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden chat-bg">
+            <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden chat-bg chat-main-panel">
               <Chat
                 privateKey={privateKey}
                 publicKey={publicKey}

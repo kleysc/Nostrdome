@@ -41,8 +41,8 @@ const TypingIndicator: React.FC<TypingIndicatorProps> = ({ pool, publicKey }) =>
   if (typingUsers.size === 0) return null;
 
   return (
-    <div className="text-sm text-gray-400 italic">
-      {Array.from(typingUsers).length} {typingUsers.size === 1 ? 'person is' : 'people are'} typing...
+    <div className="text-xs italic text-[var(--text-muted)] mb-1.5 px-1">
+      {Array.from(typingUsers).length} {typingUsers.size === 1 ? 'persona escribiendo...' : 'personas escribiendo...'}
     </div>
   );
 };

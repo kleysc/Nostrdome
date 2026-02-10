@@ -63,10 +63,10 @@ const LinkPreview: React.FC<LinkPreviewProps> = ({ url }) => {
 
   if (loading) {
     return (
-      <div className="animate-pulse bg-gray-700 rounded-lg p-2 mt-2 max-w-sm">
-        <div className="h-32 bg-gray-600 rounded mb-2"></div>
-        <div className="h-4 bg-gray-600 rounded w-3/4 mb-2"></div>
-        <div className="h-3 bg-gray-600 rounded w-1/2"></div>
+      <div className="animate-pulse rounded-lg p-2 mt-2 max-w-sm bg-[var(--sidebar-hover)] border border-[var(--border-subtle)]">
+        <div className="h-32 rounded mb-2 bg-[var(--sidebar-active)]"></div>
+        <div className="h-4 rounded w-3/4 mb-2 bg-[var(--sidebar-active)]"></div>
+        <div className="h-3 rounded w-1/2 bg-[var(--sidebar-active)]"></div>
       </div>
     );
   }
@@ -77,7 +77,7 @@ const LinkPreview: React.FC<LinkPreviewProps> = ({ url }) => {
         href={url} 
         target="_blank" 
         rel="noopener noreferrer" 
-        className="text-blue-400 hover:underline break-all"
+        className="break-all text-[var(--primary-color)] hover:underline"
       >
         {url}
       </a>
@@ -103,7 +103,7 @@ const LinkPreview: React.FC<LinkPreviewProps> = ({ url }) => {
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="block mt-2 max-w-sm bg-gray-700 rounded-lg p-3 hover:bg-gray-600 transition-colors"
+      className="block mt-2 max-w-sm rounded-lg p-3 transition-colors bg-[var(--sidebar-hover)] border border-[var(--border-subtle)] hover:bg-[var(--sidebar-active)]"
     >
       {preview.image && (
         <img
@@ -116,9 +116,9 @@ const LinkPreview: React.FC<LinkPreviewProps> = ({ url }) => {
         <h3 className="font-bold text-sm mb-1 line-clamp-2">{preview.title}</h3>
       )}
       {preview.description && (
-        <p className="text-sm text-gray-300 line-clamp-2">{preview.description}</p>
+        <p className="text-sm text-[var(--text-muted)] line-clamp-2">{preview.description}</p>
       )}
-      <span className="text-xs text-gray-400 block mt-1 truncate">{url}</span>
+      <span className="text-xs text-[var(--text-muted)] block mt-1 truncate">{url}</span>
     </a>
   );
 };

@@ -18,7 +18,7 @@ const MessageSearch: React.FC<MessageSearchProps> = ({ onSearch }) => {
           onSearch(q);
         }}
         placeholder="Buscar mensajes..."
-        className="flex-grow min-w-0 max-w-[200px] sm:max-w-none py-1.5 px-3 text-sm rounded-md"
+        className="chat-search-input flex-grow min-w-0 max-w-[220px] sm:max-w-none py-1.5 px-3 text-sm rounded-lg"
       />
       {searchQuery && (
         <button
@@ -27,7 +27,7 @@ const MessageSearch: React.FC<MessageSearchProps> = ({ onSearch }) => {
             setSearchQuery('');
             onSearch('');
           }}
-          className="text-sm px-2 py-1 rounded-md text-[var(--text-muted)] hover:text-[var(--text-color)] hover:bg-[var(--sidebar-hover)]"
+          className="chat-search-clear text-sm px-2 py-1 rounded-md text-[var(--text-muted)] hover:text-[var(--text-color)]"
         >
           ✕
         </button>

@@ -9,6 +9,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [inputKey, setInputKey] = useState("");
   const [showPopup, setShowPopup] = useState(false);
   const [nickname, setNickname] = useState("");
+  const [formError, setFormError] = useState("");
+  const [copyState, setCopyState] = useState<"public" | "private" | "">("");
   const [generatedKeys, setGeneratedKeys] = useState({
     privateKey: "",
     publicKey: "",
@@ -16,12 +18,13 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError("");
     if (inputKey) {
       try {
         const decodedKey = nip19.decode(inputKey);
         onLogin(decodedKey.data as string);
       } catch (error) {
-        alert("Clave privada no válida. Por favor, inténtalo de nuevo.");
+        setFormError("Clave privada no válida. Usa un formato nsec correcto.");
       }
     } else {
       const newPrivateKey = generatePrivateKey();
@@ -37,45 +40,87 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
   const handleClosePopup = () => {
     setShowPopup(false);
+    setCopyState("");
     const nick = nickname.trim();
     onLogin(nip19.decode(generatedKeys.privateKey).data as string, nick || undefined);
   };
 
+  const handleCopy = async (type: "public" | "private") => {
+    const value = type === "public" ? generatedKeys.publicKey : generatedKeys.privateKey;
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopyState(type);
+      setTimeout(() => setCopyState(""), 1200);
+    } catch {
+      setCopyState("");
+    }
+  };
+
   return (
-    <div className="flex flex-col items-center justify-center h-full">
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <input
-          type="password"
-          value={inputKey}
-          onChange={(e) => setInputKey(e.target.value)}
-          placeholder="Enter your private key (optional)"
-          className="w-full bg-gray-800 text-green-500 p-2 rounded focus:outline-none"
-        />
-        <button
-          type="submit"
-          className="w-full bg-green-700 text-white px-4 py-2 rounded hover:bg-green-600"
-        >
-          {inputKey ? "Login" : "Generate New Key"}
-        </button>
-      </form>
+    <div className="home-shell">
+      <div className="home-orb home-orb-a" aria-hidden />
+      <div className="home-orb home-orb-b" aria-hidden />
+
+      <section className="home-hero animate-fade-in">
+        <p className="home-badge">Nostr protocol • Self-custody chat</p>
+        <h2 className="home-title">NostrDome</h2>
+        <p className="home-subtitle">
+          Mensajería privada y canales públicos, en una experiencia enfocada en soberanía digital.
+        </p>
+        <div className="home-pill-grid">
+          <span className="home-pill">Relays abiertos</span>
+          <span className="home-pill">Identidad propia</span>
+          <span className="home-pill">Sin servidor central</span>
+        </div>
+      </section>
+
+      <section className="home-card animate-fade-in" aria-label="Acceso a NostrDome">
+        <h3 className="home-card-title">Entrar al Dome</h3>
+        <p className="home-card-copy">
+          Pega tu clave privada `nsec` para iniciar sesión o genera una nueva identidad.
+        </p>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <input
+            type="password"
+            value={inputKey}
+            onChange={(e) => setInputKey(e.target.value)}
+            placeholder="nsec1..."
+            className="home-input"
+          />
+          {formError && <p className="home-error">{formError}</p>}
+          <button type="submit" className="home-cta">
+            {inputKey ? "Iniciar sesión" : "Generar nueva clave"}
+          </button>
+        </form>
+
+        <p className="home-footnote">
+          NostrDome guarda tu clave solo en este navegador para mantener tu sesión.
+        </p>
+      </section>
 
       {showPopup && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-gray-800 p-6 rounded-lg max-w-md w-full">
-            <h2 className="text-xl mb-4">Your New Keys</h2>
-            <p className="mb-2">
-              <strong>Public Key:</strong> <br />
-              <span className="break-all">{generatedKeys.publicKey}</span>
+        <div className="home-modal-overlay">
+          <div className="home-modal-card animate-fade-in">
+            <h2 className="home-modal-title">Tus nuevas claves Nostr</h2>
+            <p className="home-modal-copy">
+              Guarda estas claves en un lugar seguro. Sin tu `nsec`, no podrás volver a entrar a esta identidad.
             </p>
-            <p className="mb-4">
-              <strong>Private Key:</strong> <br />
-              <span className="break-all">{generatedKeys.privateKey}</span>
-            </p>
-            <p className="mb-4 text-yellow-400">
-              Important: Save these keys securely. You'll need the private key
-              to log in next time.
-            </p>
-            <div className="mb-4">
+            <div className="home-key-wrap">
+              <p className="home-key-label">Clave pública</p>
+              <p className="home-key-value">{generatedKeys.publicKey}</p>
+              <button type="button" onClick={() => handleCopy("public")} className="home-key-copy">
+                {copyState === "public" ? "Copiada" : "Copiar"}
+              </button>
+            </div>
+            <div className="home-key-wrap">
+              <p className="home-key-label">Clave privada</p>
+              <p className="home-key-value">{generatedKeys.privateKey}</p>
+              <button type="button" onClick={() => handleCopy("private")} className="home-key-copy home-key-copy-warn">
+                {copyState === "private" ? "Copiada" : "Copiar"}
+              </button>
+            </div>
+            <div className="mb-5">
               <label htmlFor="new-keys-nickname" className="block text-sm font-medium text-gray-300 mb-1">
                 Tu nombre o nickname (opcional)
               </label>
@@ -85,14 +130,15 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 value={nickname}
                 onChange={(e) => setNickname(e.target.value)}
                 placeholder="ej. alice"
-                className="w-full bg-gray-700 text-gray-100 p-2 rounded border border-gray-600 focus:outline-none focus:ring-1 focus:ring-green-500 placeholder-gray-500"
+                className="home-input"
               />
             </div>
             <button
+              type="button"
               onClick={handleClosePopup}
-              className="w-full bg-green-700 text-white px-4 py-2 rounded hover:bg-green-600"
+              className="home-cta"
             >
-              I've Saved My Keys
+              Ya guardé mis claves
             </button>
           </div>
         </div>

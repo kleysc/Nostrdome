@@ -53,22 +53,22 @@ const StarredMessages: React.FC<StarredMessagesProps> = ({ messages: controlledM
   };
 
   return (
-    <div className="bg-gray-900 p-4 rounded">
-      <h2 className="text-xl mb-4">Starred Messages</h2>
+    <div className="starred-shell p-4 rounded-xl">
+      <h2 className="text-base font-semibold mb-3 text-[var(--text-color)]">Mensajes destacados</h2>
       <div className="space-y-2">
         {starredMessages.map(msg => (
-          <div key={msg.id} className="bg-gray-800 p-2 rounded flex justify-between">
+          <div key={msg.id} className="starred-item p-2.5 rounded-lg flex justify-between gap-3">
             <div>
-              <div className="text-sm text-gray-400">
+              <div className="text-xs text-[var(--text-muted)]">
                 {nip19.npubEncode(msg.pubkey).slice(0, 10)}...
               </div>
-              <div>{msg.content}</div>
+              <div className="text-sm text-[var(--text-color)] break-words">{msg.content}</div>
             </div>
             <button
               onClick={() => removeFromStarred(msg.id)}
-              className="text-red-500 hover:text-red-400"
+              className="starred-remove text-xs px-2 py-1 rounded-md"
             >
-              Remove
+              Quitar
             </button>
           </div>
         ))}
