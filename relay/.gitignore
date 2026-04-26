@@ -1,0 +1,14 @@
+# Go
+/relay
+/bin/
+*.exe
+*.test
+*.out
+
+# Local config
+relay.toml
+.env
+.env.local
+
+# Build
+/dist/
