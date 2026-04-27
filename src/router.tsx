@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate, useParams } from 'react-router-dom';
 import RootLayout from './components/shell/RootLayout';
 import ChannelView from './components/shell/ChannelView';
+import InviteJoinView from './components/shell/InviteJoinView';
 import LiveCommunityView from './components/shell/LiveCommunityView';
 import LoginRoute from './components/shell/LoginRoute';
 import { useAppStore } from './stores/store';
@@ -36,6 +37,7 @@ export const router = createBrowserRouter([
       { path: 'c/:groupId/:channelId/:messageId', element: <GroupRouter /> },
       { path: 'c/:groupId/admin', element: <div className="p-8 text-[var(--text-muted)]">Mod dashboard — llega en F5</div> },
       { path: 'dm/:pubkey', element: <div className="p-8 text-[var(--text-muted)]">DMs cross-server — llega en F2</div> },
+      { path: 'invite/:token', element: <InviteJoinView /> },
       { path: '*', element: <Navigate to="/c/legacy" replace /> },
     ],
   },
