@@ -1,0 +1,19 @@
+# Build artifacts and local data — the multi-stage build produces its
+# own binary; pulling these in only inflates the build context.
+data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+relay.toml
+
+# Test caches and editor noise.
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# The compiled spike binary if anyone ran `go build` locally.
+relay
+nostrdome-relay
+nostrdome-seed

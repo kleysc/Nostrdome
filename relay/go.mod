@@ -4,11 +4,13 @@ go 1.26.2
 
 require (
 	github.com/BurntSushi/toml v1.6.0
+	github.com/fiatjaf/eventstore v0.16.2
 	github.com/fiatjaf/khatru v0.19.1
 	github.com/nbd-wtf/go-nostr v0.52.3
 )
 
 require (
+	fiatjaf.com/lib v0.2.0 // indirect
 	github.com/ImVexed/fasturl v0.0.0-20230304231329-4e41488060f3 // indirect
 	github.com/andybalholm/brotli v1.1.1 // indirect
 	github.com/bep/debounce v1.2.1 // indirect
@@ -22,12 +24,13 @@ require (
 	github.com/decred/dcrd/crypto/blake256 v1.1.0 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0 // indirect
 	github.com/fasthttp/websocket v1.5.12 // indirect
-	github.com/fiatjaf/eventstore v0.16.2 // indirect
+	github.com/jmoiron/sqlx v1.4.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.10 // indirect
 	github.com/mailru/easyjson v0.9.0 // indirect
+	github.com/mattn/go-sqlite3 v1.14.24 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/puzpuzpuz/xsync/v3 v3.5.1 // indirect
