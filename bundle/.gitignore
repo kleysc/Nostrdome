@@ -1,0 +1,14 @@
+# Local instances
+.env
+.env.local
+Caddyfile
+community.json
+relay.toml
+data/
+backups/
+
+# Generated SPA build (will be produced from ../src/ via CI or local build script)
+public/spa/
+
+# Docker
+docker-compose.override.yml

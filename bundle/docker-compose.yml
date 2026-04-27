@@ -1,0 +1,85 @@
+# Nostrdome self-host bundle.
+#
+# One file brings up: caddy (TLS + reverse proxy + SPA static), the
+# nostrdome-relay plugin, a minimal Blossom blob server, and a one-shot
+# `spa-publish` container that writes the freshly-built SPA into the
+# shared volume Caddy serves from.
+#
+# `scripts/install.sh` materialises the templated configs (`Caddyfile`,
+# `relay.toml`, `runtime-config.js`) before this compose file runs.
+#
+# Volumes:
+#   caddy_data       — Caddy's ACME state (account keys, certs).
+#   caddy_config     — Caddy's runtime cache.
+#   relay_data       — SQLite DB + WAL files.
+#   blossom_data     — uploaded blobs.
+#   spa_dist         — populated by the spa-publish container, mounted
+#                      read-only by Caddy at /srv.
+#
+# Sizing: see bundle/README.md.
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - relay
+      - spa-publish
+      - blossom
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp" # HTTP/3
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+      - spa_dist:/srv:ro
+      - ./runtime-config.js:/srv/runtime-config.js:ro
+    environment:
+      ACME_EMAIL: ${ACME_EMAIL}
+      DOMAIN: ${DOMAIN}
+
+  relay:
+    build:
+      context: ../relay
+      dockerfile: Dockerfile
+    image: nostrdome/relay:${RELAY_IMAGE_TAG:-latest}
+    restart: unless-stopped
+    volumes:
+      - ./relay.toml:/etc/nostrdome/relay.toml:ro
+      - relay_data:/var/lib/nostrdome
+    expose:
+      - "7777"
+    # No published ports: only Caddy reaches the relay (proxied as
+    # wss://relay.$DOMAIN/). Direct access would bypass TLS termination.
+
+  spa-publish:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: nostrdome/spa:${SPA_IMAGE_TAG:-latest}
+    restart: unless-stopped
+    volumes:
+      - spa_dist:/share
+
+  blossom:
+    # Pinned by tag in install.sh; we use the canonical reference impl. The
+    # service is intentionally minimal in F1 — quotas + auth come in F4.
+    image: ghcr.io/hzrd149/blossom-server:${BLOSSOM_IMAGE_TAG:-latest}
+    restart: unless-stopped
+    expose:
+      - "3000"
+    volumes:
+      - blossom_data:/data
+    environment:
+      BLOSSOM_BASE_URL: https://blossom.${DOMAIN}
+      # Wide-open in F1. F4 swaps for NIP-98 auth + per-pubkey quotas.
+      BLOSSOM_PUBLIC_UPLOADS: "true"
+
+volumes:
+  caddy_data:
+  caddy_config:
+  relay_data:
+  blossom_data:
+  spa_dist:
