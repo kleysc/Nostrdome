@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:local": "bash scripts/dev-local.sh",
+    "dev:local:reset": "bash scripts/dev-local.sh --reset",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
