@@ -1,0 +1,45 @@
+# Nostrdome relay — example configuration.
+#
+# Copy to `relay.toml` (or pass with `--config <path>`) and edit. Every field
+# is optional; missing fields fall back to the defaults documented in
+# internal/config.Default().
+
+[relay]
+# Bind address for the websocket + NIP-11 HTTP listener.
+addr = ":7777"
+
+# NIP-11 relay information document.
+name = "nostrdome-relay"
+description = "Nostrdome sovereign-platform relay (NIP-29 groups + per-channel ACL + NIP-42 AUTH)."
+
+# Hex-encoded pubkey of the relay operator. Used by NIP-86 management API
+# (when enabled) and surfaced in the NIP-11 document. Leave empty in dev.
+pubkey = ""
+
+# Contact email or URI advertised in NIP-11 `contact`.
+contact_email = "ops@example.com"
+
+# Pointer to the source code or homepage. NIP-11 `software` field.
+software_url = "https://github.com/nostrdome-platform/relay"
+
+# Build version surfaced in NIP-11 and structured logs.
+version = "0.1.0-dev"
+
+[ratelimit]
+# Per-pubkey EVENT publish budget. Hits beyond per_minute trigger a
+# `rate-limited:` reject; burst_size is the leaky-bucket token capacity for
+# short spikes.
+per_minute = 30
+per_hour   = 600
+burst_size = 5
+
+[storage]
+# Filesystem path for the event store (lmdb/sqlite chosen in §1.2.3).
+# Created at boot if missing.
+path = "./data"
+
+[logging]
+# Filter level: one of debug | info | warn | error.
+level = "info"
+# Output format: one of json | text.
+format = "json"

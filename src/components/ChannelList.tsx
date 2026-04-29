@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { SimplePool, getEventHash, getSignature, Event } from 'nostr-tools';
 import { relayUrls } from '../config';
-import type { Channel } from '../App';
+import type { Channel } from './shell/context';
 
 interface ChannelListProps {
   channels: Channel[];

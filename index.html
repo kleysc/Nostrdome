@@ -9,6 +9,9 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- Runtime config injected by the bundle at deploy time. 404 in dev
+         is harmless; src/config.tsx falls back to Vite env vars. -->
+    <script src="/runtime-config.js"></script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

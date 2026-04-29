@@ -25,3 +25,7 @@ dist-ssr
 *.sw?
 package-lock.json
 package.json
+
+# scripts/dev-local.sh state: SQLite db + saved owner nsec
+.dev-data/
+relay/nostrdome-relay

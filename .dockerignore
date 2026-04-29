@@ -1,0 +1,24 @@
+# Don't ship secrets or local-only state to the build context.
+.env
+.env.local
+.env.*.local
+
+# Build outputs — the image rebuilds these inside the container.
+node_modules/
+dist/
+build/
+
+# Other large/irrelevant trees.
+relay/
+bundle/
+openspec/
+docs/
+.git/
+.vscode/
+.idea/
+
+# Logs and caches.
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.eslintcache
